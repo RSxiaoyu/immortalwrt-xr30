@@ -1,0 +1,14 @@
+# OpenWrt build directories
+bin/
+build_dir/
+dl/
+feeds/
+staging_dir/
+tmp/
+logs/
+.config.old
+.config.cmd
+release/
+openwrt/
+*.orig
+*.rej

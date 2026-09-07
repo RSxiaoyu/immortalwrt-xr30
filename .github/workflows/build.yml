@@ -1,0 +1,178 @@
+name: Build ImmortalWrt for CMCC XR30
+
+on:
+  workflow_dispatch:
+    inputs:
+      force_build:
+        description: 'Force build even if upstream has no changes'
+        required: false
+        default: 'true'
+        type: boolean
+  schedule:
+    - cron: '0 19 * * 0' # Weekly at 03:00 Beijing time every Monday
+  push:
+    branches:
+      - main
+    paths:
+      - 'patches/**'
+      - '.config'
+      - '.github/workflows/build.yml'
+
+env:
+  REPO_URL: https://github.com/immortalwrt/immortalwrt
+  REPO_BRANCH: openwrt-25.12
+  TZ: Asia/Shanghai
+
+permissions:
+  contents: write
+
+jobs:
+  check_upstream:
+    name: Check Upstream Updates
+    runs-on: ubuntu-22.04
+    outputs:
+      should_build: ${{ steps.check.outputs.should_build }}
+      upstream_sha: ${{ steps.check.outputs.upstream_sha }}
+      upstream_short_sha: ${{ steps.check.outputs.upstream_short_sha }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Check upstream commit
+        id: check
+        run: |
+          UPSTREAM_SHA=$(git ls-remote ${{ env.REPO_URL }}.git refs/heads/${{ env.REPO_BRANCH }} | awk '{print $1}')
+          SHORT_SHA="${UPSTREAM_SHA:0:7}"
+          echo "upstream_sha=$UPSTREAM_SHA" >> $GITHUB_OUTPUT
+          echo "upstream_short_sha=$SHORT_SHA" >> $GITHUB_OUTPUT
+
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ] || [ "${{ github.event_name }}" = "push" ]; then
+            echo "should_build=true" >> $GITHUB_OUTPUT
+          else
+            # On schedule: check if a release with this commit hash already exists
+            if gh release view "upstream-${SHORT_SHA}" --repo "${{ github.repository }}" >/dev/null 2>&1; then
+              echo "Release for upstream commit ${SHORT_SHA} already exists. Skipping build."
+              echo "should_build=false" >> $GITHUB_OUTPUT
+            else
+              echo "New upstream commit ${SHORT_SHA} detected. Starting build."
+              echo "should_build=true" >> $GITHUB_OUTPUT
+            fi
+          fi
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  build:
+    name: Build Firmware
+    needs: check_upstream
+    if: needs.check_upstream.outputs.should_build == 'true'
+    runs-on: ubuntu-22.04
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set build variables
+        id: vars
+        run: |
+          echo "build_date=$(date +'%Y.%m.%d')" >> $GITHUB_OUTPUT
+          echo "release_tag=v25.12-${{ needs.check_upstream.outputs.upstream_short_sha }}-$(date +'%Y%m%d%H%M')" >> $GITHUB_OUTPUT
+
+      - name: Initialize build environment
+        env:
+          DEBIAN_FRONTEND: noninteractive
+        run: |
+          sudo -E apt-get -qq update
+          sudo -E apt-get -qq install ack antlr3 asciidoc autoconf automake autopoint binutils bison build-essential \
+            bzip2 ccache cmake cpio curl device-tree-compiler fastjar flex gawk gettext gcc-multilib g++-multilib \
+            git gperf haveged help2man intltool libc6-dev-i386 libelf-dev libfuse-dev libglib2.0-dev libgmp3-dev \
+            libltdl-dev libmpc-dev libmpfr-dev libncurses5-dev libncursesw5-dev libpython3-dev libreadline-dev \
+            libssl-dev libtool lrzsz mkisofs msmtp ninja-build p7zip p7zip-full patch pkgconf python3 \
+            python3-pyelftools python3-setuptools qemu-utils rsync scons squashfs-tools subversion swig texinfo \
+            uglifyjs upx-ucl unzip vim wget xmlto xxd zlib1g-dev
+          sudo timedatectl set-timezone "$TZ"
+          sudo mkdir -p /workdir
+          sudo chown $USER:$GROUPS /workdir
+
+      - name: Clone upstream source
+        working-directory: /workdir
+        run: |
+          git clone --depth 1 -b ${{ env.REPO_BRANCH }} ${{ env.REPO_URL }} openwrt
+          ln -sf /workdir/openwrt $GITHUB_WORKSPACE/openwrt
+
+      - name: Apply XR30 device patches
+        working-directory: openwrt
+        run: |
+          for patch in "$GITHUB_WORKSPACE"/patches/*.patch; do
+            if [ -f "$patch" ]; then
+              echo "Applying $patch..."
+              git apply --verbose "$patch"
+            fi
+          done
+
+      - name: Update and install feeds
+        working-directory: openwrt
+        run: |
+          ./scripts/feeds update -a
+          ./scripts/feeds install -a
+
+      - name: Configure firmware
+        working-directory: openwrt
+        run: |
+          cp "$GITHUB_WORKSPACE/.config" .config
+          make defconfig
+
+      - name: Download package dependencies
+        working-directory: openwrt
+        run: |
+          make download -j8
+          find dl -size -1024c -exec rm -f {} \;
+
+      - name: Compile firmware
+        working-directory: openwrt
+        run: |
+          echo "Building on $(nproc) threads..."
+          make -j$(nproc) || make -j1 V=s
+
+      - name: Prepare release files
+        id: prepare
+        run: |
+          mkdir -p release
+          cd openwrt/bin/targets/mediatek/filogic
+          cp *cmcc_xr30-nand* "$GITHUB_WORKSPACE/release/" 2>/dev/null || true
+          cd "$GITHUB_WORKSPACE/release"
+          sha256sum * > sha256sums
+          ls -la "$GITHUB_WORKSPACE/release"
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: ImmortalWrt-XR30-Firmware
+          path: release/*
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ steps.vars.outputs.release_tag }}
+          name: "ImmortalWrt 25.12 for CMCC XR30 (${{ steps.vars.outputs.build_date }})"
+          body: |
+            ### 🚀 固件信息
+            - **适用设备**: 中国移动 CMCC XR30 (MT7981B / 256M DDR3 / 128M SPI-NAND)
+            - **上游分支**: [immortalwrt/immortalwrt:${{ env.REPO_BRANCH }}](${{ env.REPO_URL }}/tree/${{ env.REPO_BRANCH }})
+            - **上游 Commit**: [${{ needs.check_upstream.outputs.upstream_short_sha }}](${{ env.REPO_URL }}/commit/${{ needs.check_upstream.outputs.upstream_sha }})
+            - **内核版本**: Linux 6.12 (DSA 架构)
+            - **无线驱动**: mt76 开源驱动 (`kmod-mt7915e`)，支持 WED 硬件加速与 Flow Offload
+            - **镜像格式**: 现代 All-in-FIT (`.itb`)
+
+            ### 📦 文件说明
+            - `*squashfs-sysupgrade.itb`: 常规升级固件（通过 sysupgrade 或原厂/第三方后台升级）
+            - `*initramfs-recovery.itb`: 内存救援固件（通过 U-Boot TFTP/Web 临时加载）
+            - `sha256sums`: 文件校验值
+
+            ### ⚡ 默认配置
+            - **后台地址**: `192.168.1.1`
+            - **默认用户**: `root`
+            - **默认密码**: 无密码
+            - **默认主题**: Argon
+          files: release/*
