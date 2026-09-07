@@ -240,7 +240,7 @@ index 0000000..63f5989
 +			partition@580000 {
 +				compatible = "linux,ubi";
 +				label = "ubi";
-+				reg = <0x580000 0x7200000>;
++				reg = <0x580000 0x7a80000>;
 +
 +				volumes {
 +					ubi_rootdisk: ubi-volume-fit {
