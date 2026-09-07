@@ -49,8 +49,7 @@ jobs:
           if [ "${{ github.event_name }}" = "workflow_dispatch" ] || [ "${{ github.event_name }}" = "push" ]; then
             echo "should_build=true" >> $GITHUB_OUTPUT
           else
-            # On schedule: check if a release with this commit hash already exists
-            if gh release view "upstream-${SHORT_SHA}" --repo "${{ github.repository }}" >/dev/null 2>&1; then
+            if gh release list --repo "${{ github.repository }}" --json tagName -q ".[].tagName" | grep -q "${SHORT_SHA}"; then
               echo "Release for upstream commit ${SHORT_SHA} already exists. Skipping build."
               echo "should_build=false" >> $GITHUB_OUTPUT
             else
@@ -82,13 +81,9 @@ jobs:
           DEBIAN_FRONTEND: noninteractive
         run: |
           sudo -E apt-get -qq update
-          sudo -E apt-get -qq install ack antlr3 asciidoc autoconf automake autopoint binutils bison build-essential \
-            bzip2 ccache cmake cpio curl device-tree-compiler fastjar flex gawk gettext gcc-multilib g++-multilib \
-            git gperf haveged help2man intltool libc6-dev-i386 libelf-dev libfuse-dev libglib2.0-dev libgmp3-dev \
-            libltdl-dev libmpc-dev libmpfr-dev libncurses5-dev libncursesw5-dev libpython3-dev libreadline-dev \
-            libssl-dev libtool lrzsz mkisofs msmtp ninja-build p7zip p7zip-full patch pkgconf python3 \
-            python3-pyelftools python3-setuptools qemu-utils rsync scons squashfs-tools subversion swig texinfo \
-            uglifyjs upx-ucl unzip vim wget xmlto xxd zlib1g-dev
+          sudo -E apt-get -qq install build-essential clang flex bison gawk gettext \
+            device-tree-compiler libncurses-dev libssl-dev python3-distutils \
+            python3-pyelftools python3-setuptools rsync swig unzip zlib1g-dev
           sudo timedatectl set-timezone "$TZ"
           sudo mkdir -p /workdir
           sudo chown $USER:$GROUPS /workdir
@@ -138,7 +133,7 @@ jobs:
         run: |
           mkdir -p release
           cd openwrt/bin/targets/mediatek/filogic
-          cp *cmcc_xr30-nand* "$GITHUB_WORKSPACE/release/" 2>/dev/null || true
+          cp -v *cmcc_xr30-nand* "$GITHUB_WORKSPACE/release/"
           cd "$GITHUB_WORKSPACE/release"
           sha256sum * > sha256sums
           ls -la "$GITHUB_WORKSPACE/release"
@@ -157,22 +152,23 @@ jobs:
           tag_name: ${{ steps.vars.outputs.release_tag }}
           name: "ImmortalWrt 25.12 for CMCC XR30 (${{ steps.vars.outputs.build_date }})"
           body: |
-            ### 🚀 固件信息
-            - **适用设备**: 中国移动 CMCC XR30 (MT7981B / 256M DDR3 / 128M SPI-NAND)
+            ### 固件信息
+            - **适用设备**: 中国移动 CMCC XR30 (MT7981B / 512M DDR4 / 128M SPI-NAND / USB 3.0)
             - **上游分支**: [immortalwrt/immortalwrt:${{ env.REPO_BRANCH }}](${{ env.REPO_URL }}/tree/${{ env.REPO_BRANCH }})
             - **上游 Commit**: [${{ needs.check_upstream.outputs.upstream_short_sha }}](${{ env.REPO_URL }}/commit/${{ needs.check_upstream.outputs.upstream_sha }})
             - **内核版本**: Linux 6.12 (DSA 架构)
             - **无线驱动**: mt76 开源驱动 (`kmod-mt7915e`)，支持 WED 硬件加速与 Flow Offload
             - **镜像格式**: 现代 All-in-FIT (`.itb`)
 
-            ### 📦 文件说明
-            - `*squashfs-sysupgrade.itb`: 常规升级固件（通过 sysupgrade 或原厂/第三方后台升级）
-            - `*initramfs-recovery.itb`: 内存救援固件（通过 U-Boot TFTP/Web 临时加载）
+            ### 文件说明
+            - `*squashfs-sysupgrade.itb`: 常规升级固件（通过 sysupgrade 或 U-Boot 控制台升级）
+            - `*initramfs-recovery.itb`: 内存救援恢复固件（通过 U-Boot 纯内存免擦写加载）
             - `sha256sums`: 文件校验值
 
-            ### ⚡ 默认配置
+            ### 默认配置
             - **后台地址**: `192.168.1.1`
             - **默认用户**: `root`
             - **默认密码**: 无密码
             - **默认主题**: Argon
+            - **内置功能**: Homeproxy (Sing-box 核心环境)、BBR、USB 3.0 自动挂载
           files: release/*

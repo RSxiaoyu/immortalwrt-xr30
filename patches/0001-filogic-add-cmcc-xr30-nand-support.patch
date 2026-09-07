@@ -1,9 +1,9 @@
 diff --git a/target/linux/mediatek/dts/mt7981b-cmcc-xr30-nand.dts b/target/linux/mediatek/dts/mt7981b-cmcc-xr30-nand.dts
 new file mode 100644
-index 0000000..63f5989
+index 0000000..9fe25a8
 --- /dev/null
 +++ b/target/linux/mediatek/dts/mt7981b-cmcc-xr30-nand.dts
-@@ -0,0 +1,269 @@
+@@ -0,0 +1,278 @@
 +// SPDX-License-Identifier: GPL-2.0-or-later OR MIT
 +
 +/dts-v1/;
@@ -23,6 +23,7 @@ index 0000000..63f5989
 +		led-failsafe = &red_led;
 +		led-running = &white_led;
 +		led-upgrade = &red_led;
++		label-mac-device = &gmac1;
 +		serial0 = &uart0;
 +	};
 +
@@ -34,7 +35,7 @@ index 0000000..63f5989
 +	};
 +
 +	memory@40000000 {
-+		reg = <0 0x40000000 0 0x10000000>;
++		reg = <0 0x40000000 0 0x20000000>;
 +		device_type = "memory";
 +	};
 +
@@ -256,6 +257,10 @@ index 0000000..63f5989
 +	status = "okay";
 +};
 +
++&usb_phy {
++	status = "okay";
++};
++
 +&watchdog {
 +	status = "okay";
 +};
@@ -272,6 +277,10 @@ index 0000000..63f5989
 +		nvmem-cells = <&macaddr_factory_a 0>;
 +		nvmem-cell-names = "mac-address";
 +	};
++};
++
++&xhci {
++	status = "okay";
 +};
 diff --git a/target/linux/mediatek/filogic/base-files/etc/board.d/02_network b/target/linux/mediatek/filogic/base-files/etc/board.d/02_network
 index 01aa9a0..2ffc462 100644
@@ -306,10 +315,10 @@ index 80597ca..4859d68 100644
  	creatlentem,clt-r30b1-ubi|\
  	cudy,m3000-v1-ubootmod|\
 diff --git a/target/linux/mediatek/image/filogic.mk b/target/linux/mediatek/image/filogic.mk
-index 6e93416..b854022 100644
+index 6e93416..b95206c 100644
 --- a/target/linux/mediatek/image/filogic.mk
 +++ b/target/linux/mediatek/image/filogic.mk
-@@ -995,6 +995,29 @@ define Device/cmcc_rax3000me
+@@ -995,6 +995,24 @@ define Device/cmcc_rax3000me
  endef
  TARGET_DEVICES += cmcc_rax3000me
  
@@ -320,12 +329,7 @@ index 6e93416..b854022 100644
 +  DEVICE_DTS := mt7981b-cmcc-xr30-nand
 +  DEVICE_DTS_DIR := ../dts
 +  SUPPORTED_DEVICES += cmcc,xr30 cmcc,xr30-nand
-+  DEVICE_PACKAGES := kmod-mt7915e kmod-mt7981-firmware mt7981-wo-firmware
-+  UBINIZE_OPTS := -E 5
-+  BLOCKSIZE := 128k
-+  PAGESIZE := 2048
-+  KERNEL_IN_UBI := 1
-+  UBOOTENV_IN_UBI := 1
++  DEVICE_PACKAGES := kmod-mt7915e kmod-mt7981-firmware mt7981-wo-firmware kmod-usb3 automount
 +  IMAGES := sysupgrade.itb
 +  KERNEL_INITRAMFS_SUFFIX := -recovery.itb
 +  KERNEL := kernel-bin | gzip
