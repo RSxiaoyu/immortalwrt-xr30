@@ -71,7 +71,7 @@ jobs:
     needs: check_upstream
     if: needs.check_upstream.outputs.should_build == 'true'
     runs-on: ubuntu-22.04
-    timeout-minutes: 240
+    timeout-minutes: 180
 
     steps:
       - name: Checkout repository
@@ -114,24 +114,19 @@ jobs:
             fi
           done
 
-      - name: Update and install feeds
-        working-directory: openwrt
-        timeout-minutes: 15
-        run: |
-          ./scripts/feeds update -a || ./scripts/feeds update -a
-          ./scripts/feeds install -a
-
-      - name: Add OpenWrt-momo package
-        working-directory: openwrt
-        run: |
-          git clone --depth 1 https://github.com/nikkinikki-org/OpenWrt-momo.git package/momo
-
       - name: Copy custom overlay files
         run: |
           if [ -d "$GITHUB_WORKSPACE/files" ]; then
             cp -r "$GITHUB_WORKSPACE/files" openwrt/files
             chmod +x openwrt/files/etc/uci-defaults/* 2>/dev/null || true
           fi
+
+      - name: Update and install feeds
+        working-directory: openwrt
+        timeout-minutes: 15
+        run: |
+          ./scripts/feeds update -a || ./scripts/feeds update -a
+          ./scripts/feeds install -a
 
       - name: Configure firmware
         working-directory: openwrt
@@ -205,7 +200,7 @@ jobs:
             ### 默认配置与集成特性
             - **后台地址**: `192.168.1.1` ｜ 用户名：`root` ｜ 默认无密码
             - **默认主题**: Argon 现代主题 + TTYD 网页终端
-            - **透明代理**: 内置 OpenWrt-momo (`luci-app-momo` + `sing-box`) 及全套内核模块 (`kmod-dummy`, `kmod-nft-socket`, `kmod-nft-tproxy`, `kmod-tun`, `kmod-inet-diag`, `kmod-netlink-diag`)
+            - **透明代理环境**: 内置全套代理内核模块 (`kmod-dummy`, `kmod-nft-socket`, `kmod-nft-tproxy`, `kmod-tun`, `kmod-inet-diag`, `kmod-netlink-diag`)，预置 Momo 官方源与证书
             - **性能加速**: 默认开启 MTK PPE 硬件流量分载、Packet Steering 多核中断均衡、TCP BBR
             - **存储扩展**: USB 3.0 + UAS 高速传输 + ext4/vfat/exFAT 自动挂载
           files: release/*

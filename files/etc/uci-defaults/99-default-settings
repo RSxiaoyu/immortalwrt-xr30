@@ -16,4 +16,15 @@ uci set wireless.radio1.band='5g'
 uci set wireless.radio1.htmode='HE160'
 uci commit wireless
 
+# 4. 预置 Momo 官方软件源与公钥 (开箱即用，支持一键安装与在线更新)
+mkdir -p /etc/opkg/keys
+cat << 'EOF' > /etc/opkg/keys/momo.pub
+untrusted comment: Nikki
+RWSrAXyIqregizvXvG9kJI/JoTkaCCPDy6CQrrVQ4IZ8Qgu+iWMql0UW
+EOF
+
+if ! grep -q "momomomo.pages.dev" /etc/opkg/customfeeds.conf 2>/dev/null; then
+    echo "src/gz momo https://momomomo.pages.dev/SNAPSHOT/aarch64_cortex-a53/momo" >> /etc/opkg/customfeeds.conf
+fi
+
 exit 0
