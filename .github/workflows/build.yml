@@ -15,6 +15,7 @@ on:
       - main
     paths:
       - 'patches/**'
+      - 'files/**'
       - '.config'
       - '.github/workflows/build.yml'
 
@@ -99,6 +100,11 @@ jobs:
           git clone --depth 1 -b ${{ env.REPO_BRANCH }} ${{ env.REPO_URL }} openwrt
           ln -sf /workdir/openwrt $GITHUB_WORKSPACE/openwrt
 
+      - name: Add OpenWrt-momo package
+        working-directory: openwrt
+        run: |
+          git clone --depth 1 https://github.com/nikkinikki-org/OpenWrt-momo.git package/momo
+
       - name: Apply XR30 device patches
         working-directory: openwrt
         run: |
@@ -108,6 +114,13 @@ jobs:
               git apply --verbose "$patch"
             fi
           done
+
+      - name: Copy custom overlay files
+        run: |
+          if [ -d "$GITHUB_WORKSPACE/files" ]; then
+            cp -r "$GITHUB_WORKSPACE/files" openwrt/files
+            chmod +x openwrt/files/etc/uci-defaults/* 2>/dev/null || true
+          fi
 
       - name: Update and install feeds
         working-directory: openwrt
@@ -179,10 +192,10 @@ jobs:
             - `*initramfs-recovery.itb`: 内存救援恢复固件（通过 U-Boot 纯内存免擦写加载）
             - `sha256sums`: 文件校验值
 
-            ### 默认配置
-            - **后台地址**: `192.168.1.1`
-            - **默认用户**: `root`
-            - **默认密码**: 无密码
-            - **默认主题**: Argon
-            - **内置功能**: Homeproxy (Sing-box 核心环境)、BBR、USB 3.0 自动挂载
+            ### 默认配置与集成特性
+            - **后台地址**: `192.168.1.1` ｜ 用户名：`root` ｜ 默认无密码
+            - **默认主题**: Argon 现代主题 + TTYD 网页终端
+            - **透明代理**: 内置 OpenWrt-momo (`luci-app-momo` + `sing-box`) 及全套内核模块 (`kmod-dummy`, `kmod-nft-socket`, `kmod-nft-tproxy`, `kmod-tun`, `kmod-inet-diag`, `kmod-netlink-diag`)
+            - **性能加速**: 默认开启 MTK PPE 硬件流量分载、Packet Steering 多核中断均衡、TCP BBR
+            - **存储扩展**: USB 3.0 + UAS 高速传输 + ext4/vfat/exFAT 自动挂载
           files: release/*

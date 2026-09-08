@@ -8,8 +8,9 @@
 - **架构**：全合一 FIT 单镜像 (`sysupgrade.itb`)，原生 `fitblk` 挂载。
 - **直通**：专为 `ubootmod` 打造，废除 NMBM，原生 MTD/UBI 直通（UBI 卷空间 122.5MB，可用磁盘 90MB+）。
 - **硬件**：精准映射红白状态灯、独立千兆 WAN/LAN、USB 3.0，完整启用 512MB DDR4。
-- **性能**：Linux 6.12 + DSA 架构 + WED 硬件加速 + BBR 拥塞控制。
-- **集成**：内置 Homeproxy (Sing-box) 运行环境、Argon 现代主题、USB 自动挂载。
+- **性能**：Linux 6.12 + DSA 架构 + WED 硬件加速 + MTK PPE 硬件流量分载 + Packet Steering 多核分发 + BBR 拥塞控制。
+- **透明代理**：预置 [OpenWrt-momo](https://github.com/nikkinikki-org/OpenWrt-momo) (Sing-box)，底层预编 `kmod-dummy`, `kmod-nft-socket`, `kmod-nft-tproxy`, `kmod-tun` 等全套内核依赖。
+- **扩展与终端**：内置 TTYD 网页终端、USB 3.0 (UAS 加速) 及 ext4/vfat/exFAT 自动挂载。
 
 ## 硬件规格
 | 项 | 规格 |
