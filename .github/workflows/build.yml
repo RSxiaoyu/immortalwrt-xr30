@@ -1,77 +1,28 @@
-name: Build ImmortalWrt for CMCC XR30
+name: Build ImmortalWrt via ImageBuilder for CMCC XR30
 
 on:
   workflow_dispatch:
-    inputs:
-      force_build:
-        description: 'Force build even if upstream has no changes'
-        required: false
-        default: 'true'
-        type: boolean
-  schedule:
-    - cron: '0 19 * * 0' # Weekly at 03:00 Beijing time every Monday
   push:
     branches:
+      - imagebuilder
       - main
-    paths:
-      - 'patches/**'
-      - 'files/**'
-      - '.config'
-      - '.github/workflows/build.yml'
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 env:
-  REPO_URL: https://github.com/immortalwrt/immortalwrt
-  REPO_BRANCH: openwrt-25.12
+  IB_URL: https://downloads.immortalwrt.org/releases/25.12-SNAPSHOT/targets/mediatek/filogic/immortalwrt-imagebuilder-25.12-SNAPSHOT-mediatek-filogic.Linux-x86_64.tar.zst
   TZ: Asia/Shanghai
 
 permissions:
   contents: write
 
 jobs:
-  check_upstream:
-    name: Check Upstream Updates
-    runs-on: ubuntu-22.04
-    timeout-minutes: 5
-    outputs:
-      should_build: ${{ steps.check.outputs.should_build }}
-      upstream_sha: ${{ steps.check.outputs.upstream_sha }}
-      upstream_short_sha: ${{ steps.check.outputs.upstream_short_sha }}
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Check upstream commit
-        id: check
-        run: |
-          UPSTREAM_SHA=$(git ls-remote ${{ env.REPO_URL }}.git refs/heads/${{ env.REPO_BRANCH }} | awk '{print $1}')
-          SHORT_SHA="${UPSTREAM_SHA:0:7}"
-          echo "upstream_sha=$UPSTREAM_SHA" >> $GITHUB_OUTPUT
-          echo "upstream_short_sha=$SHORT_SHA" >> $GITHUB_OUTPUT
-
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ] || [ "${{ github.event_name }}" = "push" ]; then
-            echo "should_build=true" >> $GITHUB_OUTPUT
-          else
-            if gh release list --repo "${{ github.repository }}" --json tagName -q ".[].tagName" | grep -q "${SHORT_SHA}"; then
-              echo "Release for upstream commit ${SHORT_SHA} already exists. Skipping build."
-              echo "should_build=false" >> $GITHUB_OUTPUT
-            else
-              echo "New upstream commit ${SHORT_SHA} detected. Starting build."
-              echo "should_build=true" >> $GITHUB_OUTPUT
-            fi
-          fi
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
   build:
-    name: Build Firmware
-    needs: check_upstream
-    if: needs.check_upstream.outputs.should_build == 'true'
+    name: Build via ImageBuilder
     runs-on: ubuntu-22.04
-    timeout-minutes: 180
+    timeout-minutes: 15
 
     steps:
       - name: Checkout repository
@@ -81,100 +32,62 @@ jobs:
         id: vars
         run: |
           echo "build_date=$(date +'%Y.%m.%d')" >> $GITHUB_OUTPUT
-          echo "release_tag=v25.12-${{ needs.check_upstream.outputs.upstream_short_sha }}-$(date +'%Y%m%d%H%M')" >> $GITHUB_OUTPUT
+          echo "release_tag=v25.12-$(date +'%Y%m%d%H%M')" >> $GITHUB_OUTPUT
 
-      - name: Initialize build environment
-        env:
-          DEBIAN_FRONTEND: noninteractive
+      - name: Install build tools
         run: |
-          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc
-          sudo -E apt-get -qq update
-          sudo -E apt-get -qq install build-essential clang flex bison gawk gettext \
-            device-tree-compiler libncurses-dev libssl-dev python3-distutils \
-            python3-pyelftools python3-setuptools rsync swig unzip zlib1g-dev
-          sudo timedatectl set-timezone "$TZ"
-          git config --global http.lowSpeedLimit 1000
-          git config --global http.lowSpeedTime 30
-          sudo mkdir -p /workdir
-          sudo chown $USER:$GROUPS /workdir
+          sudo apt-get -qq update
+          sudo apt-get -qq install zstd libssl-dev libncurses-dev
 
-      - name: Clone upstream source
-        working-directory: /workdir
+      - name: Download official ImageBuilder
         run: |
-          git clone --depth 1 -b ${{ env.REPO_BRANCH }} ${{ env.REPO_URL }} openwrt
-          ln -sf /workdir/openwrt $GITHUB_WORKSPACE/openwrt
+          echo "Downloading official ImageBuilder..."
+          curl -sL --retry 3 --connect-timeout 10 \
+            "${{ env.IB_URL }}" -o ib.tar.zst
+          tar -I zstd -xf ib.tar.zst
+          rm -f ib.tar.zst
+          IB_DIR=$(ls -d immortalwrt-imagebuilder-*)
+          echo "IB_DIR=$IB_DIR" >> $GITHUB_ENV
+          echo "Extracted to $IB_DIR"
 
-      - name: Apply XR30 device patches
-        working-directory: openwrt
+      - name: Inject XR30 profile and device tree
         run: |
-          for patch in "$GITHUB_WORKSPACE"/patches/*.patch; do
-            if [ -f "$patch" ]; then
-              echo "Applying $patch..."
-              git apply --verbose "$patch"
-            fi
-          done
+          chmod +x "$GITHUB_WORKSPACE/scripts/inject_xr30.sh"
+          "$GITHUB_WORKSPACE/scripts/inject_xr30.sh" "$IB_DIR" "$GITHUB_WORKSPACE/dts/image-mt7981b-cmcc-xr30-nand.dtb"
 
-      - name: Copy custom overlay files
+      - name: Build Firmware via ImageBuilder
         run: |
-          if [ -d "$GITHUB_WORKSPACE/files" ]; then
-            cp -r "$GITHUB_WORKSPACE/files" openwrt/files
-            chmod +x openwrt/files/etc/uci-defaults/* 2>/dev/null || true
-          fi
+          cd "$IB_DIR"
 
-      - name: Update and install feeds
-        working-directory: openwrt
-        timeout-minutes: 15
-        run: |
-          ./scripts/feeds update -a || ./scripts/feeds update -a
-          ./scripts/feeds install -a
+          chmod +x "$GITHUB_WORKSPACE"/files/etc/uci-defaults/* 2>/dev/null || true
 
-      - name: Configure firmware
-        working-directory: openwrt
-        run: |
-          cp "$GITHUB_WORKSPACE/.config" .config
-          make defconfig
+          PACKAGES_LIST="kmod-dummy kmod-nft-socket kmod-nft-tproxy kmod-tun kmod-inet-diag kmod-netlink-diag kmod-tcp-bbr kmod-usb3 kmod-usb-storage kmod-usb-storage-uas kmod-fs-ext4 kmod-fs-vfat kmod-fs-exfat automount luci luci-i18n-base-zh-cn luci-theme-argon luci-app-ttyd luci-i18n-ttyd-zh-cn curl ca-bundle ip-full momo luci-app-momo luci-i18n-momo-zh-cn sing-box"
 
-      - name: Cache package downloads
-        uses: actions/cache@v4
-        with:
-          path: openwrt/dl
-          key: ${{ runner.os }}-openwrt-dl-${{ env.REPO_BRANCH }}-${{ hashFiles('openwrt/feeds.conf.default') }}
-          restore-keys: |
-            ${{ runner.os }}-openwrt-dl-${{ env.REPO_BRANCH }}-
-            ${{ runner.os }}-openwrt-dl-
+          echo "Packaging firmware with pre-integrated Momo and Sing-box..."
+          make image PROFILE=cmcc_rax3000m \
+            PACKAGES="$PACKAGES_LIST" \
+            FILES="$GITHUB_WORKSPACE/files"
 
-      - name: Download package dependencies
-        working-directory: openwrt
-        timeout-minutes: 20
-        run: |
-          export CURL_OPTIONS="--speed-limit 1000 --speed-time 15 --max-time 180"
-          export WGET_OPTIONS="--timeout=15 --tries=2"
-          echo "Downloading dependencies in parallel..."
-          make download -j8 || make download -j2 || true
-          find dl -size -1024c -exec rm -f {} \;
-          ls -lh dl/ | head -n 30
-
-      - name: Compile firmware
-        working-directory: openwrt
-        run: |
-          echo "Building on $(nproc) threads..."
-          make -j$(nproc) || make -j1 V=s
-
-      - name: Prepare release files
-        id: prepare
+      - name: Prepare Release Artifacts
         run: |
           mkdir -p release
-          cd openwrt/bin/targets/mediatek/filogic
-          cp -v *cmcc_xr30-nand* "$GITHUB_WORKSPACE/release/"
+          OUTPUT_DIR=$(find "$IB_DIR"/bin -type d -name "filogic" | head -n 1)
+          echo "Output directory: $OUTPUT_DIR"
+          cd "$OUTPUT_DIR"
+
+          echo "Generated raw files:"
+          ls -la *rax3000m* 2>/dev/null || true
+
+          # 将生成的固件与元数据映射为 XR30 专用固件包
+          for f in *rax3000m*; do
+            [ -f "$f" ] || continue
+            TARGET_NAME=$(echo "$f" | sed 's/cmcc_rax3000m/cmcc_xr30-nand/g')
+            cp -v "$f" "$GITHUB_WORKSPACE/release/$TARGET_NAME"
+          done
+
           cd "$GITHUB_WORKSPACE/release"
           sha256sum * > sha256sums
-          ls -la "$GITHUB_WORKSPACE/release"
-
-      - name: Upload artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: ImmortalWrt-XR30-Firmware
-          path: release/*
+          ls -la
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
@@ -186,21 +99,10 @@ jobs:
           body: |
             ### 固件信息
             - **适用设备**: 中国移动 CMCC XR30 (MT7981B / 512M DDR4 / 128M SPI-NAND / USB 3.0)
-            - **上游分支**: [immortalwrt/immortalwrt:${{ env.REPO_BRANCH }}](${{ env.REPO_URL }}/tree/${{ env.REPO_BRANCH }})
-            - **上游 Commit**: [${{ needs.check_upstream.outputs.upstream_short_sha }}](${{ env.REPO_URL }}/commit/${{ needs.check_upstream.outputs.upstream_sha }})
-            - **内核版本**: Linux 6.12 (DSA 架构)
-            - **无线驱动**: mt76 开源驱动 (`kmod-mt7915e`)，支持 WED 硬件加速与 Flow Offload
-            - **镜像格式**: 现代 All-in-FIT (`.itb`)
-
-            ### 文件说明
-            - `*squashfs-sysupgrade.itb`: 常规升级固件（通过 sysupgrade 或 U-Boot 控制台升级）
-            - `*initramfs-recovery.itb`: 内存救援恢复固件（通过 U-Boot 纯内存免擦写加载）
-            - `sha256sums`: 文件校验值
-
-            ### 默认配置与集成特性
-            - **后台地址**: `192.168.1.1` ｜ 用户名：`root` ｜ 默认无密码
-            - **默认主题**: Argon 现代主题 + TTYD 网页终端
-            - **透明代理环境**: 内置全套代理内核模块 (`kmod-dummy`, `kmod-nft-socket`, `kmod-nft-tproxy`, `kmod-tun`, `kmod-inet-diag`, `kmod-netlink-diag`)，预置 Momo 官方源与证书
+            - **构建机制**: 官方 ImageBuilder (免源码编译，全套官方内核驱动)
+            - **设备树**: 注入精准校准的 XR30 专用 DTB（状态红白灯、按键、512MB RAM、USB 3.0）
+            - **透明代理**: 内置 OpenWrt-momo (`luci-app-momo` + `sing-box`) 及全套内核模块 (`kmod-dummy`, `kmod-nft-socket`, `kmod-nft-tproxy`, `kmod-tun`, `kmod-inet-diag`, `kmod-netlink-diag`)
             - **性能加速**: 默认开启 MTK PPE 硬件流量分载、Packet Steering 多核中断均衡、TCP BBR
             - **存储扩展**: USB 3.0 + UAS 高速传输 + ext4/vfat/exFAT 自动挂载
+            - **管理界面**: Argon 现代主题 + TTYD 网页终端
           files: release/*
