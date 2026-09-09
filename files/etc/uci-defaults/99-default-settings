@@ -1,30 +1,57 @@
 #!/bin/sh
 
-# 1. 开启防火墙硬件流量分载 (MTK PPE / HNAT) 与软件分载
+# 1. 运行时补全平台升级与网络映射兼容 (防止后续 sysupgrade 拒刷)
+if [ -f /lib/upgrade/platform.sh ] && ! grep -q "cmcc,xr30" /lib/upgrade/platform.sh; then
+    sed -i 's/cmcc,rax3000m\\|/cmcc,rax3000m\\|cmcc,xr30*\\|/g' /lib/upgrade/platform.sh 2>/dev/null || true
+fi
+if [ -f /etc/board.d/02_network ] && ! grep -q "cmcc,xr30" /etc/board.d/02_network; then
+    sed -i 's/cmcc,rax3000m\\|/cmcc,rax3000m\\|cmcc,xr30*\\|/g' /etc/board.d/02_network 2>/dev/null || true
+fi
+
+# 2. 开启防火墙硬件流量分载 (MTK PPE / HNAT) 与软件分载
 uci -q set firewall.@defaults[0].flow_offloading='1'
 uci -q set firewall.@defaults[0].flow_offloading_hw='1'
 uci -q commit firewall || true
 
-# 2. 开启多核网络中断均衡 (Packet Steering)
+# 3. 开启多核网络中断均衡 (Packet Steering)
 uci -q set network.globals.packet_steering='1'
 uci -q commit network || true
 
-# 3. 优化 Wi-Fi 默认参数 (国家码 CN, 5G 启用 160MHz 频宽)
+# 4. 优化 TCP BBR 拥塞控制与 FQ 队列
+mkdir -p /etc/sysctl.d
+cat << 'EOF' > /etc/sysctl.d/99-bbr.conf
+net.core.default_qdisc=fq
+net.ipv4.tcp_congestion_control=bbr
+EOF
+sysctl -p /etc/sysctl.d/99-bbr.conf 2>/dev/null || true
+
+# 5. 优化 Wi-Fi 默认参数 (国家码 CN, 5G 锁定信道 36 并启用 160MHz 频宽)
 uci -q set wireless.radio0.country='CN'
 uci -q set wireless.radio1.country='CN'
+uci -q set wireless.radio1.channel='36'
 uci -q set wireless.radio1.band='5g'
 uci -q set wireless.radio1.htmode='HE160'
 uci -q commit wireless || true
 
-# 4. 预置 Momo 官方软件源与公钥 (开箱即用，支持一键安装与在线更新)
+# 6. 预置 Momo 官方软件源与公钥 (同时适配 APK 与 OPKG)
 mkdir -p /etc/opkg/keys
 cat << 'EOF' > /etc/opkg/keys/momo.pub
 untrusted comment: Nikki
 RWSrAXyIqregizvXvG9kJI/JoTkaCCPDy6CQrrVQ4IZ8Qgu+iWMql0UW
 EOF
-
 if ! grep -q "momomomo.pages.dev" /etc/opkg/customfeeds.conf 2>/dev/null; then
-    echo "src/gz momo https://momomomo.pages.dev/SNAPSHOT/aarch64_cortex-a53/momo" >> /etc/opkg/customfeeds.conf
+    echo "src/gz momo https://momomomo.pages.dev/SNAPSHOT/aarch64_cortex-a53/momo" >> /etc/opkg/customfeeds.conf 2>/dev/null || true
+fi
+
+mkdir -p /etc/apk/keys /etc/apk/repositories.d
+cat << 'EOF' > /etc/apk/keys/momo.pem
+-----BEGIN PUBLIC KEY-----
+MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAETOwt83tzTFqyvjwimjuuvslR40t6
+XnROMwxZsC0iQAr2hHjuXX8qyhf5WaD2Hd897+Gc1/+4W4DMqroNp5w2Dg==
+-----END PUBLIC KEY-----
+EOF
+if ! grep -q "momomomo.pages.dev" /etc/apk/repositories.d/customfeeds.list 2>/dev/null; then
+    echo "https://momomomo.pages.dev/SNAPSHOT/aarch64_cortex-a53/momo/packages.adb" >> /etc/apk/repositories.d/customfeeds.list 2>/dev/null || true
 fi
 
 exit 0
