@@ -2,6 +2,8 @@ name: Build ImmortalWrt via ImageBuilder for CMCC XR30
 
 on:
   workflow_dispatch:
+  schedule:
+    - cron: '0 20 * * 0' # 每周一凌晨 04:00 (北京时间) 自动巡检构建并发布最新版本固件
   push:
     branches:
       - imagebuilder
@@ -37,7 +39,7 @@ jobs:
       - name: Install build tools
         run: |
           sudo apt-get -qq update
-          sudo apt-get -qq install zstd libssl-dev libncurses-dev
+          sudo apt-get -qq install zstd libssl-dev libncurses-dev jq
 
       - name: Download official ImageBuilder
         run: |
@@ -51,6 +53,8 @@ jobs:
           echo "Extracted to $IB_DIR"
 
       - name: Inject XR30 profile and device tree
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           chmod +x "$GITHUB_WORKSPACE/scripts/inject_xr30.sh"
           "$GITHUB_WORKSPACE/scripts/inject_xr30.sh" "$IB_DIR" "$GITHUB_WORKSPACE/dts/image-mt7981b-cmcc-xr30-nand.dtb"
@@ -124,7 +128,7 @@ jobs:
             - **适用设备**: 中国移动 CMCC XR30 (MT7981B / 512M DDR4 / 128M SPI-NAND / USB 3.0)
             - **构建机制**: 官方 ImageBuilder (免源码编译，全套官方内核驱动)
             - **设备树**: 注入精准校准的 XR30 专用 DTB（状态红白灯、按键、512MB RAM、USB 3.0）
-            - **透明代理**: 内置 OpenWrt-momo (`luci-app-momo` + `sing-box`) 及全套内核模块 (`kmod-dummy`, `kmod-nft-socket`, `kmod-nft-tproxy`, `kmod-tun`, `kmod-inet-diag`, `kmod-netlink-diag`)
+            - **透明代理**: 内置 OpenWrt-momo (`luci-app-momo` + `sing-box` 官方最新版) 及全套内核模块 (`kmod-dummy`, `kmod-nft-socket`, `kmod-nft-tproxy`, `kmod-tun`, `kmod-inet-diag`, `kmod-netlink-diag`)
             - **性能加速**: 默认开启 MTK PPE 硬件流量分载、Packet Steering 多核中断均衡、TCP BBR
             - **存储扩展**: USB 3.0 + UAS 高速传输 + ext4/vfat/exFAT 自动挂载
             - **管理界面**: Argon 现代主题 + TTYD 网页终端

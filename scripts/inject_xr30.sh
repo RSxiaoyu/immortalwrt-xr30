@@ -35,22 +35,39 @@ curl -sL https://momomomo.pages.dev/public-key.pem -o keys/momo.pem
 curl -sL https://momomomo.pages.dev/public-key.pem -o etc/apk/keys/momo.pem
 curl -sL https://momomomo.pages.dev/key-build.pub -o keys/momo.pub
 
-# 4. 将 Momo 官方预编译包直接下载并置入 ImageBuilder 的本地 packages/ 目录
+# 4. 自动查询并拉取 Momo 官方最新版本（完全免维护动态追踪）
 mkdir -p packages
 MOMO_URL="https://momomomo.pages.dev/SNAPSHOT/aarch64_cortex-a53/momo"
+MOMO_JSON=$(curl -sL "$MOMO_URL/index.json")
 
-echo "Fetching Momo official precompiled packages..."
-curl -sL "$MOMO_URL/momo-2026.06.03-r1.apk" -o packages/momo-2026.06.03-r1.apk || true
-curl -sL "$MOMO_URL/luci-app-momo-1.2.1-r1.apk" -o packages/luci-app-momo-1.2.1-r1.apk || true
-curl -sL "$MOMO_URL/luci-i18n-momo-zh-cn-26.167.13849~99aa8d9.apk" -o packages/luci-i18n-momo-zh-cn-26.167.13849~99aa8d9.apk || true
+MOMO_VER=$(echo "$MOMO_JSON" | jq -r '.packages["momo"] // empty')
+LUCI_MOMO_VER=$(echo "$MOMO_JSON" | jq -r '.packages["luci-app-momo"] // empty')
+LUCI_ZH_VER=$(echo "$MOMO_JSON" | jq -r '.packages["luci-i18n-momo-zh-cn"] // empty')
 
-# 5. 下载并以标准 APK 命名置入 SagerNet 官方发布的最新正式版 sing-box v1.14.0
-SINGBOX_VER="1.14.0"
-echo "Fetching official SagerNet sing-box v${SINGBOX_VER} for aarch64_cortex-a53..."
-curl -sL "https://github.com/SagerNet/sing-box/releases/download/v${SINGBOX_VER}/sing-box_${SINGBOX_VER}_openwrt_aarch64_cortex-a53.apk" -o "packages/sing-box-${SINGBOX_VER}-r0.apk" || true
-# 同样备选原始命名以防不同工具链索取
-cp -v "packages/sing-box-${SINGBOX_VER}-r0.apk" "packages/sing-box_${SINGBOX_VER}_openwrt_aarch64_cortex-a53.apk" 2>/dev/null || true
+echo "Discovered upstream Momo versions: momo=$MOMO_VER, luci-app-momo=$LUCI_MOMO_VER, zh=$LUCI_ZH_VER"
+
+if [ -n "$MOMO_VER" ]; then
+    curl -sL "$MOMO_URL/momo-${MOMO_VER}.apk" -o "packages/momo-${MOMO_VER}.apk"
+fi
+if [ -n "$LUCI_MOMO_VER" ]; then
+    curl -sL "$MOMO_URL/luci-app-momo-${LUCI_MOMO_VER}.apk" -o "packages/luci-app-momo-${LUCI_MOMO_VER}.apk"
+fi
+if [ -n "$LUCI_ZH_VER" ]; then
+    curl -sL "$MOMO_URL/luci-i18n-momo-zh-cn-${LUCI_ZH_VER}.apk" -o "packages/luci-i18n-momo-zh-cn-${LUCI_ZH_VER}.apk"
+fi
+
+# 5. 自动查询并拉取 SagerNet 官方最新正式版 sing-box（完全免维护动态追踪）
+SINGBOX_TAG=$(gh release view --repo SagerNet/sing-box --json tagName --jq '.tagName' 2>/dev/null || true)
+if [ -z "$SINGBOX_TAG" ]; then
+    SINGBOX_TAG=$(curl -sL https://api.github.com/repos/SagerNet/sing-box/releases/latest | jq -r '.tag_name // "v1.14.0"')
+fi
+SINGBOX_VER="${SINGBOX_TAG#v}"
+echo "Discovered upstream Sing-box latest release: v${SINGBOX_VER}"
+
+SINGBOX_APK_URL="https://github.com/SagerNet/sing-box/releases/download/v${SINGBOX_VER}/sing-box_${SINGBOX_VER}_openwrt_aarch64_cortex-a53.apk"
+echo "Fetching: $SINGBOX_APK_URL"
+curl -sL "$SINGBOX_APK_URL" -o "packages/sing-box-${SINGBOX_VER}-r0.apk" || true
 
 ls -lh packages/
 
-echo "XR30 DTB, supported devices, Momo, and Sing-box 1.14.0 staged successfully in ImageBuilder!"
+echo "XR30 DTB, supported devices, and latest upstream packages staged successfully in ImageBuilder!"
