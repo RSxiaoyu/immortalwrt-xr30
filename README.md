@@ -4,12 +4,15 @@
 
 专为 **中国移动 CMCC XR30** 打造的纯粹上游 ImmortalWrt 25.12 固件构建仓库。
 
+基于官方 **ImageBuilder (镜像生成器)** 架构重构，跳过冗长的工具链与内核重复编译，**2 分半钟极速打包出炉**，100% 享受官方稳定内核与预编译软件源生态。
+
 ## 特性
+- **构建机制**：官方 ImageBuilder 引擎打包，2 分半钟全速直出，零编译报错风险。
 - **架构**：全合一 FIT 单镜像 (`sysupgrade.itb`)，原生 `fitblk` 挂载。
 - **直通**：专为 `ubootmod` 打造，废除 NMBM，原生 MTD/UBI 直通（UBI 卷空间 122.5MB，可用磁盘 90MB+）。
-- **硬件**：精准映射红白状态灯、独立千兆 WAN/LAN、USB 3.0，完整启用 512MB DDR4。
+- **硬件**：精准注入 XR30 专用 DTB，红白状态灯、WPS/Mesh 按键、独立千兆 WAN/LAN、USB 3.0 完全校准，完整启用 512MB DDR4。
 - **性能**：Linux 6.12 + DSA 架构 + WED 硬件加速 + MTK PPE 硬件流量分载 + Packet Steering 多核分发 + BBR 拥塞控制。
-- **透明代理环境**：原生内置 `kmod-dummy`, `kmod-nft-socket`, `kmod-nft-tproxy`, `kmod-tun`, `kmod-inet-diag`, `kmod-netlink-diag` 等全套代理内核模块，预置 [OpenWrt-momo](https://github.com/nikkinikki-org/OpenWrt-momo) 官方源。
+- **透明代理**：开箱即用，出厂已完整内置 [OpenWrt-momo](https://github.com/nikkinikki-org/OpenWrt-momo) (`momo` + `luci-app-momo` + `sing-box`) 及全套内核模块 (`kmod-dummy`, `kmod-nft-socket`, `kmod-nft-tproxy`, `kmod-tun`, `kmod-inet-diag`, `kmod-netlink-diag`)。
 - **扩展与终端**：内置 TTYD 网页终端、USB 3.0 (UAS 加速) 及 ext4/vfat/exFAT 自动挂载。
 
 ## 硬件规格
@@ -23,7 +26,4 @@
 ## 刷写与使用
 1. **升级固件**：在 [bl-mt798x-xr30](https://github.com/RSxiaoyu/bl-mt798x-xr30) U-Boot Web 恢复控制台 (`192.168.1.1`) 直接上传 `*sysupgrade.itb` 刷入；或在运行系统中执行 `sysupgrade -n *.itb`。
 2. **默认管理**：`192.168.1.1` ｜ 用户名：`root` ｜ 默认无密码。
-3. **Momo 安装**：固件已预埋所有内核模块与源公钥，开箱即用。在终端执行一条命令即可安装：
-   ```bash
-   opkg update && opkg install momo luci-app-momo
-   ```
+3. **Momo 代理**：刷入开机后，Momo 与 Sing-box 已直接安装在系统中，进入 LuCI 菜单即可直接配置使用；后续亦支持通过 `opkg` / `apk` 在线热更新。
