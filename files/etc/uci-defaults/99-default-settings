@@ -1,20 +1,20 @@
 #!/bin/sh
 
 # 1. 开启防火墙硬件流量分载 (MTK PPE / HNAT) 与软件分载
-uci set firewall.@defaults[0].flow_offloading='1'
-uci set firewall.@defaults[0].flow_offloading_hw='1'
-uci commit firewall
+uci -q set firewall.@defaults[0].flow_offloading='1'
+uci -q set firewall.@defaults[0].flow_offloading_hw='1'
+uci -q commit firewall || true
 
 # 2. 开启多核网络中断均衡 (Packet Steering)
-uci set network.globals.packet_steering='1'
-uci commit network
+uci -q set network.globals.packet_steering='1'
+uci -q commit network || true
 
 # 3. 优化 Wi-Fi 默认参数 (国家码 CN, 5G 启用 160MHz 频宽)
-uci set wireless.radio0.country='CN'
-uci set wireless.radio1.country='CN'
-uci set wireless.radio1.band='5g'
-uci set wireless.radio1.htmode='HE160'
-uci commit wireless
+uci -q set wireless.radio0.country='CN'
+uci -q set wireless.radio1.country='CN'
+uci -q set wireless.radio1.band='5g'
+uci -q set wireless.radio1.htmode='HE160'
+uci -q commit wireless || true
 
 # 4. 预置 Momo 官方软件源与公钥 (开箱即用，支持一键安装与在线更新)
 mkdir -p /etc/opkg/keys
