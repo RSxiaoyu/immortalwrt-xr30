@@ -271,5 +271,11 @@
 	};
 };
 
+&usb_phy {
+	status = "okay";
+};
 
+&xhci {
+	status = "okay";
+};
 
