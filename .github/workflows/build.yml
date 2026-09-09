@@ -86,6 +86,29 @@ jobs:
           done
 
           cd "$GITHUB_WORKSPACE/release"
+
+          # 使用 fwtool 校验并加固 metadata 确保 sysupgrade 零拦截
+          FWTOOL=$(find "$GITHUB_WORKSPACE/$IB_DIR"/staging_dir/host/bin -name "fwtool" 2>/dev/null | head -n 1)
+          if [ -x "$FWTOOL" ]; then
+            for itb in *.itb; do
+              [ -f "$itb" ] || continue
+              echo "Inspecting metadata for $itb..."
+              "$FWTOOL" -q -i meta.json "$itb" 2>/dev/null || true
+              if [ -f meta.json ]; then
+                echo "Original metadata:"
+                cat meta.json
+                if ! grep -q "cmcc,xr30-nand" meta.json; then
+                  echo "Injecting cmcc,xr30-nand into metadata..."
+                  sed -i 's/"supported_devices":\s*\[/"supported_devices": ["cmcc,xr30-nand", "cmcc,xr30", /g' meta.json
+                  "$FWTOOL" -m meta.json "$itb"
+                fi
+                rm -f meta.json
+                echo "Final metadata:"
+                "$FWTOOL" -q -i /dev/stdout "$itb" || true
+              fi
+            done
+          fi
+
           sha256sum * > sha256sums
           ls -la
 

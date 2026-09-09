@@ -22,13 +22,20 @@ for dtb in "$KDIR"/*rax3000m*nand* "$KDIR"/*rax3000m*.dtb; do
     fi
 done
 
-# 2. 注入 Momo 官方签名公钥
+# 2. 注入 cmcc,xr30 与 cmcc,xr30-nand 到 supported_devices，避免 sysupgrade 校验拦截
+TARGET_MK=$(find target/linux/mediatek/image -name "filogic.mk" 2>/dev/null || find . -name "filogic.mk" | head -n 1)
+if [ -f "$TARGET_MK" ]; then
+    echo "Hooking SUPPORTED_DEVICES in $TARGET_MK..."
+    sed -i '/define Device\/cmcc_rax3000m/a \  SUPPORTED_DEVICES += cmcc,xr30 cmcc,xr30-nand' "$TARGET_MK"
+fi
+
+# 3. 注入 Momo 官方签名公钥
 mkdir -p keys etc/apk/keys
 curl -sL https://momomomo.pages.dev/public-key.pem -o keys/momo.pem
 curl -sL https://momomomo.pages.dev/public-key.pem -o etc/apk/keys/momo.pem
 curl -sL https://momomomo.pages.dev/key-build.pub -o keys/momo.pub
 
-# 3. 将 Momo 官方预编译包直接下载并置入 ImageBuilder 的本地 packages/ 目录
+# 4. 将 Momo 官方预编译包直接下载并置入 ImageBuilder 的本地 packages/ 目录
 mkdir -p packages
 MOMO_URL="https://momomomo.pages.dev/SNAPSHOT/aarch64_cortex-a53/momo"
 
@@ -43,4 +50,4 @@ curl -sL "$MOMO_URL/luci-i18n-momo-zh-cn_26.167.13849~99aa8d9_all.ipk" -o packag
 
 ls -lh packages/
 
-echo "XR30 DTB and Momo packages successfully staged in ImageBuilder!"
+echo "XR30 DTB, supported devices, and Momo packages successfully staged in ImageBuilder!"
