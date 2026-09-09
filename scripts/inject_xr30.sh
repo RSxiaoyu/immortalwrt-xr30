@@ -44,15 +44,12 @@ curl -sL "$MOMO_URL/momo-2026.06.03-r1.apk" -o packages/momo-2026.06.03-r1.apk |
 curl -sL "$MOMO_URL/luci-app-momo-1.2.1-r1.apk" -o packages/luci-app-momo-1.2.1-r1.apk || true
 curl -sL "$MOMO_URL/luci-i18n-momo-zh-cn-26.167.13849~99aa8d9.apk" -o packages/luci-i18n-momo-zh-cn-26.167.13849~99aa8d9.apk || true
 
-curl -sL "$MOMO_URL/momo_2026.06.03-r1_aarch64_cortex-a53.ipk" -o packages/momo_2026.06.03-r1_aarch64_cortex-a53.ipk || true
-curl -sL "$MOMO_URL/luci-app-momo_1.2.1-r1_all.ipk" -o packages/luci-app-momo_1.2.1-r1_all.ipk || true
-curl -sL "$MOMO_URL/luci-i18n-momo-zh-cn_26.167.13849~99aa8d9_all.ipk" -o packages/luci-i18n-momo-zh-cn_26.167.13849~99aa8d9_all.ipk || true
-
-# 5. 下载并置入 SagerNet 官方发布的最新正式版 sing-box (v1.14.0 for aarch64_cortex-a53)
+# 5. 下载并以标准 APK 命名置入 SagerNet 官方发布的最新正式版 sing-box v1.14.0
 SINGBOX_VER="1.14.0"
 echo "Fetching official SagerNet sing-box v${SINGBOX_VER} for aarch64_cortex-a53..."
-curl -sL "https://github.com/SagerNet/sing-box/releases/download/v${SINGBOX_VER}/sing-box_${SINGBOX_VER}_openwrt_aarch64_cortex-a53.apk" -o "packages/sing-box_${SINGBOX_VER}_openwrt_aarch64_cortex-a53.apk" || true
-curl -sL "https://github.com/SagerNet/sing-box/releases/download/v${SINGBOX_VER}/sing-box_${SINGBOX_VER}_openwrt_aarch64_cortex-a53.ipk" -o "packages/sing-box_${SINGBOX_VER}_openwrt_aarch64_cortex-a53.ipk" || true
+curl -sL "https://github.com/SagerNet/sing-box/releases/download/v${SINGBOX_VER}/sing-box_${SINGBOX_VER}_openwrt_aarch64_cortex-a53.apk" -o "packages/sing-box-${SINGBOX_VER}-r0.apk" || true
+# 同样备选原始命名以防不同工具链索取
+cp -v "packages/sing-box-${SINGBOX_VER}-r0.apk" "packages/sing-box_${SINGBOX_VER}_openwrt_aarch64_cortex-a53.apk" 2>/dev/null || true
 
 ls -lh packages/
 
