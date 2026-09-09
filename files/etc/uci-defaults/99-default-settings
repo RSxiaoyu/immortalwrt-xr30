@@ -25,10 +25,9 @@ net.ipv4.tcp_congestion_control=bbr
 EOF
 sysctl -p /etc/sysctl.d/99-bbr.conf 2>/dev/null || true
 
-# 5. 优化 Wi-Fi 默认参数 (国家码 CN, 5G 锁定信道 36 并启用 160MHz 频宽)
+# 5. 优化 Wi-Fi 硬件物理参数 (国家码合规 CN，5G 开启 160MHz 物理频宽，信道完全交由系统自动调度)
 uci -q set wireless.radio0.country='CN'
 uci -q set wireless.radio1.country='CN'
-uci -q set wireless.radio1.channel='36'
 uci -q set wireless.radio1.band='5g'
 uci -q set wireless.radio1.htmode='HE160'
 uci -q commit wireless || true
