@@ -22,30 +22,25 @@ for dtb in "$KDIR"/*rax3000m*nand* "$KDIR"/*rax3000m*.dtb; do
     fi
 done
 
-# 2. 注入 Momo 软件源与公钥到 ImageBuilder (支持在固件打包期直接预装 Momo + Sing-box)
+# 2. 注入 Momo 官方签名公钥
 mkdir -p keys etc/apk/keys
+curl -sL https://momomomo.pages.dev/public-key.pem -o keys/momo.pem
+curl -sL https://momomomo.pages.dev/public-key.pem -o etc/apk/keys/momo.pem
+curl -sL https://momomomo.pages.dev/key-build.pub -o keys/momo.pub
 
-cat << 'EOF' > keys/momo.pub
-untrusted comment: Nikki
-RWSrAXyIqregizvXvG9kJI/JoTkaCCPDy6CQrrVQ4IZ8Qgu+iWMql0UW
-EOF
+# 3. 将 Momo 官方预编译包直接下载并置入 ImageBuilder 的本地 packages/ 目录
+mkdir -p packages
+MOMO_URL="https://momomomo.pages.dev/SNAPSHOT/aarch64_cortex-a53/momo"
 
-cat << 'EOF' > etc/apk/keys/momo.pem
------BEGIN PUBLIC KEY-----
-MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAETOwt83tzTFqyvjwimjuuvslR40t6
-XnROMwxZsC0iQAr2hHjuXX8qyhf5WaD2Hd897+Gc1/+4W4DMqroNp5w2Dg==
------END PUBLIC KEY-----
-EOF
+echo "Fetching Momo official precompiled packages..."
+curl -sL "$MOMO_URL/momo-2026.06.03-r1.apk" -o packages/momo-2026.06.03-r1.apk || true
+curl -sL "$MOMO_URL/luci-app-momo-1.2.1-r1.apk" -o packages/luci-app-momo-1.2.1-r1.apk || true
+curl -sL "$MOMO_URL/luci-i18n-momo-zh-cn-26.167.13849~99aa8d9.apk" -o packages/luci-i18n-momo-zh-cn-26.167.13849~99aa8d9.apk || true
 
-if [ -f repositories.conf ]; then
-    echo "Current repositories.conf:"
-    cat repositories.conf
-    # 同时兼容 opkg 与 apk 格式的 feed 注入
-    if grep -q "src/gz" repositories.conf; then
-        echo "src/gz momo https://momomomo.pages.dev/SNAPSHOT/aarch64_cortex-a53/momo" >> repositories.conf
-    else
-        echo "https://momomomo.pages.dev/SNAPSHOT/aarch64_cortex-a53/momo/packages.adb" >> repositories.conf
-    fi
-fi
+curl -sL "$MOMO_URL/momo_2026.06.03-r1_aarch64_cortex-a53.ipk" -o packages/momo_2026.06.03-r1_aarch64_cortex-a53.ipk || true
+curl -sL "$MOMO_URL/luci-app-momo_1.2.1-r1_all.ipk" -o packages/luci-app-momo_1.2.1-r1_all.ipk || true
+curl -sL "$MOMO_URL/luci-i18n-momo-zh-cn_26.167.13849~99aa8d9_all.ipk" -o packages/luci-i18n-momo-zh-cn_26.167.13849~99aa8d9_all.ipk || true
 
-echo "XR30 DTB and Momo feeds successfully configured in ImageBuilder!"
+ls -lh packages/
+
+echo "XR30 DTB and Momo packages successfully staged in ImageBuilder!"
