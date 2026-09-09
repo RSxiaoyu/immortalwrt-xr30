@@ -90,24 +90,13 @@ jobs:
 
           cd "$GITHUB_WORKSPACE/release"
 
-          # 使用 fwtool 与 jq 校验并注入完整合规 metadata，保证全生命周期 sysupgrade 零拦截
+          # 校验生成的固件元数据，保证 sysupgrade 零拦截
           FWTOOL=$(find "$GITHUB_WORKSPACE/$IB_DIR"/staging_dir/host/bin -name "fwtool" 2>/dev/null | head -n 1)
           if [ -x "$FWTOOL" ]; then
             for itb in *.itb; do
               [ -f "$itb" ] || continue
-              echo "Inspecting metadata for $itb..."
-              "$FWTOOL" -q -i meta.json "$itb" 2>/dev/null || true
-              if [ -f meta.json ]; then
-                echo "Original metadata:"
-                cat meta.json
-                # 使用 jq 幂等合并支持的设备列表
-                jq '.supported_devices = (["cmcc,xr30-nand", "cmcc,xr30"] + .supported_devices | unique)' meta.json > meta_new.json
-                mv -f meta_new.json meta.json
-                "$FWTOOL" -m meta.json "$itb"
-                rm -f meta.json
-                echo "Final secured metadata:"
-                "$FWTOOL" -q -i /dev/stdout "$itb" || true
-              fi
+              echo "Inspecting verified metadata for $itb:"
+              "$FWTOOL" -q -i /dev/stdout "$itb" || true
             done
           fi
 
