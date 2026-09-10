@@ -2,8 +2,6 @@ name: Build ImmortalWrt via ImageBuilder for CMCC XR30
 
 on:
   workflow_dispatch:
-  schedule:
-    - cron: '0 20 * * 0' # 每周一凌晨 04:00 (北京时间) 自动巡检构建并发布最新版本固件
   push:
     branches:
       - main
