@@ -12,22 +12,25 @@ fi
 REPO_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$IB_DIR"
 
-# 1. XR30 DTB = 上游 RAX3000M NAND DTB + XR30 增量 overlay (fdtoverlay)
-#    ImageBuilder 不带 DTS 源码,直接复用上游已编译 DTB,只维护增量。
+# 1. XR30 DTB = 上游 RAX3000M base DTB + 上游 NAND overlay + XR30 增量 overlay (fdtoverlay 链式应用)
+#    ImageBuilder 不带 DTS 源码,直接复用上游已编译 DTB/DTBO,只维护增量。
+#    生成后将满树写回 base/nand/me 三个槽位 (与既往已验证启动行为一致)。
 KDIR=$(find build_dir -type d -name "linux-mediatek_filogic" | head -n 1)
 if [ -z "$KDIR" ]; then
     echo "Error: Kernel build directory not found!"
     exit 1
 fi
-BASE_DTB=$(find "$KDIR" -name "*rax3000m*nand*.dtb" | head -n 1)
-if [ -z "$BASE_DTB" ]; then
-    echo "Error: upstream RAX3000M NAND DTB not found in $KDIR!"
+BASE_DTB=$(find "$KDIR" -name "image-*rax3000m.dtb" | head -n 1)
+NAND_DTBO=$(find "$KDIR" -name "image-*rax3000m-nand.dtbo" | head -n 1)
+if [ -z "$BASE_DTB" ] || [ -z "$NAND_DTBO" ]; then
+    echo "Error: upstream RAX3000M base DTB / NAND DTBO not found in $KDIR!"
     exit 1
 fi
 echo "Base DTB: $BASE_DTB"
+echo "NAND DTBO: $NAND_DTBO"
 
 dtc -@ -I dts -O dtb -o /tmp/xr30.dtbo "$DTSO_FILE"
-fdtoverlay -i "$BASE_DTB" -o /tmp/xr30-nand.dtb /tmp/xr30.dtbo
+fdtoverlay -i "$BASE_DTB" -o /tmp/xr30-nand.dtb "$NAND_DTBO" /tmp/xr30.dtbo
 
 HOOKED_COUNT=0
 for dtb in "$KDIR"/*rax3000m*nand* "$KDIR"/*rax3000m*.dtb; do
