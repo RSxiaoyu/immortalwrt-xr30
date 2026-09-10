@@ -55,10 +55,10 @@ done
 
 # 3. 02_network / platform.sh 构建时从上游 master 实时拉取并注入 XR30 匹配项,
 #    避免 vendored 整份拷贝随上游漂移。
-FILIC_BASE="https://raw.githubusercontent.com/immortalwrt/immortalwrt/master/target/linux/mediatek/filogic/base-files"
+FILIC_BASE="https://raw.githubusercontent.com/immortalwrt/immortalwrt/openwrt-25.12/target/linux/mediatek/filogic/base-files"
 mkdir -p "$REPO_DIR/files/etc/board.d" "$REPO_DIR/files/lib/upgrade"
-curl -sL --retry 3 "$FILIC_BASE/etc/board.d/02_network" -o "$REPO_DIR/files/etc/board.d/02_network"
-curl -sL --retry 3 "$FILIC_BASE/lib/upgrade/platform.sh" -o "$REPO_DIR/files/lib/upgrade/platform.sh"
+curl -sLf --retry 3 "$FILIC_BASE/etc/board.d/02_network" -o "$REPO_DIR/files/etc/board.d/02_network"
+curl -sLf --retry 3 "$FILIC_BASE/lib/upgrade/platform.sh" -o "$REPO_DIR/files/lib/upgrade/platform.sh"
 for f in "$REPO_DIR/files/etc/board.d/02_network" "$REPO_DIR/files/lib/upgrade/platform.sh"; do
     awk '{print} /cmcc,rax3000m\|\\/{print "\tcmcc,xr30*|\\"}' "$f" > "$f.tmp" && mv "$f.tmp" "$f"
     chmod +x "$f"
