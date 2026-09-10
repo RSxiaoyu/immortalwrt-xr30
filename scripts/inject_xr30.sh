@@ -2,32 +2,41 @@
 set -e
 
 IB_DIR="$1"
-DTB_FILE="$2"
+DTSO_FILE="$2"
 
-if [ -z "$IB_DIR" ] || [ ! -d "$IB_DIR" ] || [ ! -f "$DTB_FILE" ]; then
-    echo "Usage: $0 <ImageBuilder_Directory> <DTB_File>"
+if [ -z "$IB_DIR" ] || [ ! -d "$IB_DIR" ] || [ ! -f "$DTSO_FILE" ]; then
+    echo "Usage: $0 <ImageBuilder_Directory> <XR30_DTSO>"
     exit 1
 fi
 
+REPO_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$IB_DIR"
 
-# 1. 查找内核构建目录并注入 XR30 专用 DTB 到 RAX3000M 槽位
+# 1. XR30 DTB = 上游 RAX3000M NAND DTB + XR30 增量 overlay (fdtoverlay)
+#    ImageBuilder 不带 DTS 源码,直接复用上游已编译 DTB,只维护增量。
 KDIR=$(find build_dir -type d -name "linux-mediatek_filogic" | head -n 1)
-if [ -z "$KDIR" ] || [ ! -d "$KDIR" ]; then
+if [ -z "$KDIR" ]; then
     echo "Error: Kernel build directory not found!"
     exit 1
 fi
-echo "Kernel build directory: $KDIR"
+BASE_DTB=$(find "$KDIR" -name "*rax3000m*nand*.dtb" | head -n 1)
+if [ -z "$BASE_DTB" ]; then
+    echo "Error: upstream RAX3000M NAND DTB not found in $KDIR!"
+    exit 1
+fi
+echo "Base DTB: $BASE_DTB"
+
+dtc -@ -I dts -O dtb -o /tmp/xr30.dtbo "$DTSO_FILE"
+fdtoverlay -i "$BASE_DTB" -o /tmp/xr30-nand.dtb /tmp/xr30.dtbo
 
 HOOKED_COUNT=0
 for dtb in "$KDIR"/*rax3000m*nand* "$KDIR"/*rax3000m*.dtb; do
     if [ -f "$dtb" ]; then
         echo "Injecting XR30 DTB into $dtb"
-        cp -v "$DTB_FILE" "$dtb"
+        cp /tmp/xr30-nand.dtb "$dtb"
         HOOKED_COUNT=$((HOOKED_COUNT + 1))
     fi
 done
-
 if [ "$HOOKED_COUNT" -eq 0 ]; then
     echo "Error: No RAX3000M DTB slots found to hook in $KDIR!"
     exit 1
@@ -41,19 +50,27 @@ for mk in $(find target/linux/mediatek/image -name "*.mk" 2>/dev/null || find . 
     fi
 done
 
-# 3. 补丁 ImageBuilder 内部所有可能的 platform.sh 与 02_network
-for f in $(find . -name "02_network" -o -name "platform.sh"); do
-    if grep -q "cmcc,rax3000m" "$f" && ! grep -q "cmcc,xr30" "$f"; then
-        echo "Pre-patching runtime file $f..."
-        sed -i 's/cmcc,rax3000m\\|/cmcc,rax3000m\\|cmcc,xr30*\\|/g' "$f"
-    fi
+# 3. 02_network / platform.sh 构建时从上游 master 实时拉取并注入 XR30 匹配项,
+#    避免 vendored 整份拷贝随上游漂移。
+FILIC_BASE="https://raw.githubusercontent.com/immortalwrt/immortalwrt/master/target/linux/mediatek/filogic/base-files"
+mkdir -p "$REPO_DIR/files/etc/board.d" "$REPO_DIR/files/lib/upgrade"
+curl -sL --retry 3 "$FILIC_BASE/etc/board.d/02_network" -o "$REPO_DIR/files/etc/board.d/02_network"
+curl -sL --retry 3 "$FILIC_BASE/lib/upgrade/platform.sh" -o "$REPO_DIR/files/lib/upgrade/platform.sh"
+for f in "$REPO_DIR/files/etc/board.d/02_network" "$REPO_DIR/files/lib/upgrade/platform.sh"; do
+    awk '{print} /cmcc,rax3000m\|\\/{print "\tcmcc,xr30*|\\"}' "$f" > "$f.tmp" && mv "$f.tmp" "$f"
+    chmod +x "$f"
 done
+# 自检: 02_network 1 处 + platform.sh 3 处
+XR30_HOOKS=$(grep -c 'cmcc,xr30' "$REPO_DIR/files/etc/board.d/02_network" "$REPO_DIR/files/lib/upgrade/platform.sh" | awk -F: '{s+=$2} END{print s}')
+if [ "$XR30_HOOKS" -ne 4 ]; then
+    echo "Error: expected 4 XR30 hooks (1x 02_network, 3x platform.sh), got $XR30_HOOKS"
+    exit 1
+fi
+echo "Injected $XR30_HOOKS XR30 hooks into generated board scripts."
 
-# 4. 注入 Momo 官方签名公钥
-mkdir -p keys etc/apk/keys
-curl -sL https://momomomo.pages.dev/public-key.pem -o keys/momo.pem
-curl -sL https://momomomo.pages.dev/public-key.pem -o etc/apk/keys/momo.pem
-curl -sL https://momomomo.pages.dev/key-build.pub -o keys/momo.pub
+# 4. 把 Momo 签名公钥喂给 ImageBuilder (校验本地 momo apk 包)
+mkdir -p etc/apk/keys
+cp "$REPO_DIR/files/etc/apk/keys/momo.pem" etc/apk/keys/momo.pem
 
 # 5. 自动查询并拉取 Momo 官方最新版本（完全免维护动态追踪）
 mkdir -p packages
@@ -95,4 +112,4 @@ curl -sL "$SINGBOX_APK_URL" -o "packages/sing-box-${SINGBOX_VER}-r0.apk" || true
 
 ls -lh packages/
 
-echo "XR30 DTB, supported devices, and latest upstream packages staged successfully in ImageBuilder!"
+echo "XR30 DTB overlay, supported devices, and latest upstream packages staged successfully in ImageBuilder!"

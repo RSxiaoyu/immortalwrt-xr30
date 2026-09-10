@@ -38,7 +38,7 @@ jobs:
       - name: Install build tools
         run: |
           sudo apt-get -qq update
-          sudo apt-get -qq install zstd libssl-dev libncurses-dev jq
+          sudo apt-get -qq install zstd libssl-dev libncurses-dev jq device-tree-compiler
 
       - name: Download official ImageBuilder
         run: |
@@ -56,7 +56,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           chmod +x "$GITHUB_WORKSPACE/scripts/inject_xr30.sh"
-          "$GITHUB_WORKSPACE/scripts/inject_xr30.sh" "$IB_DIR" "$GITHUB_WORKSPACE/dts/image-mt7981b-cmcc-xr30-nand.dtb"
+          "$GITHUB_WORKSPACE/scripts/inject_xr30.sh" "$IB_DIR" "$GITHUB_WORKSPACE/dts/mt7981b-cmcc-xr30-nand.dtso"
 
       - name: Build Firmware via ImageBuilder
         run: |

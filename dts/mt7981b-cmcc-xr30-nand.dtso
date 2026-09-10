@@ -1,0 +1,62 @@
+// SPDX-License-Identifier: GPL-2.0-or-later OR MIT
+
+// CMCC XR30 (NAND U-Boot mod) 增量设备树 overlay。
+// 基底 = 上游 CMCC RAX3000M NAND DTB (ImageBuilder build_dir 中已编译),构建时由
+// scripts/inject_xr30.sh 通过 fdtoverlay 应用。只维护与 RAX3000M 的真实差异。
+// 常量内联: GPIO_ACTIVE_LOW=1, LED_COLOR_ID_WHITE=7 (避免拉取 dt-bindings 头文件)
+
+/dts-v1/;
+/plugin/;
+
+/ {
+	// compatible / model / label MAC
+	fragment@0 {
+		target-path = "/";
+		__overlay__ {
+			model = "CMCC XR30 (NAND U-Boot mod)";
+			compatible = "cmcc,xr30-nand", "cmcc,rax3000m", "mediatek,mt7981";
+			label-mac-device = <&gmac1>;
+		};
+	};
+
+	// 升级灯改用红色 (运行灯沿用上游 led-running = &green_led,下方已改为白色)
+	fragment@1 {
+		target-path = "/aliases";
+		__overlay__ {
+			led-upgrade = <&red_led>;
+		};
+	};
+
+	// XR30: 白色运行灯在 GPIO34 (替换上游 GPIO9 绿灯)
+	fragment@2 {
+		target = <&green_led>;
+		__overlay__ {
+			color = <7>;
+			gpios = <&pio 34 1>;
+		};
+	};
+
+	// XR30 无 GPIO12 蓝灯,删除
+	fragment@3 {
+		target-path = "/gpio-leds";
+		__overlay__ {
+			/delete-node/ led-1;
+		};
+	};
+
+	// XR30 UBI 分区铺满整片 128MB (上游 RAX3000M 尾部留有保留区)
+	fragment@4 {
+		target-path = "/soc/spi@1100a000/spi_nand@0/partitions/partition@580000";
+		__overlay__ {
+			reg = <0x580000 0x7a80000>;
+		};
+	};
+
+	// 保持与完整 DTS 时代一致的 bootargs
+	fragment@5 {
+		target = <&chosen>;
+		__overlay__ {
+			bootargs = "root=/dev/fit0 rootwait";
+		};
+	};
+};

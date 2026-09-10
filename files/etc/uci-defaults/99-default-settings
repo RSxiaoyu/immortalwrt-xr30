@@ -1,25 +1,15 @@
 #!/bin/sh
 
-# 1. 强制纠偏网络物理接口映射 (确保护航：WAN 绑定真实硬件 gmac1/eth1，LAN 桥接绑定 lan1 lan2 lan3)
-uci -q set network.lan.device='br-lan'
-uci -q set network.lan_dev=device
-uci -q set network.lan_dev.name='br-lan'
-uci -q set network.lan_dev.type='bridge'
-uci -q set network.lan_dev.ports='lan1 lan2 lan3'
-uci -q set network.wan.device='eth1'
-uci -q set network.wan6.device='eth1'
-uci -q commit network || true
-
-# 2. 开启防火墙硬件流量分载 (MTK PPE / HNAT) 与软件分载
+# 1. 开启防火墙硬件流量分载 (MTK PPE / HNAT) 与软件分载
 uci -q set firewall.@defaults[0].flow_offloading='1'
 uci -q set firewall.@defaults[0].flow_offloading_hw='1'
 uci -q commit firewall || true
 
-# 3. 开启多核网络中断均衡 (Packet Steering)
+# 2. 开启多核网络中断均衡 (Packet Steering)
 uci -q set network.globals.packet_steering='1'
 uci -q commit network || true
 
-# 4. 优化 TCP BBR 拥塞控制与 FQ 队列
+# 3. 优化 TCP BBR 拥塞控制与 FQ 队列
 mkdir -p /etc/sysctl.d
 cat << 'EOF' > /etc/sysctl.d/99-bbr.conf
 net.core.default_qdisc=fq
@@ -27,32 +17,11 @@ net.ipv4.tcp_congestion_control=bbr
 EOF
 sysctl -p /etc/sysctl.d/99-bbr.conf 2>/dev/null || true
 
-# 5. 优化 Wi-Fi 硬件物理参数 (国家码合规 CN，5G 开启 160MHz 物理频宽，信道完全交由系统自动调度)
+# 4. Wi-Fi 物理参数 (国家码合规 CN，5G 开启 160MHz 物理频宽)
 uci -q set wireless.radio0.country='CN'
 uci -q set wireless.radio1.country='CN'
 uci -q set wireless.radio1.band='5g'
 uci -q set wireless.radio1.htmode='HE160'
 uci -q commit wireless || true
-
-# 6. 预置 Momo 官方软件源与公钥 (同时适配 APK 与 OPKG)
-mkdir -p /etc/opkg/keys
-cat << 'EOF' > /etc/opkg/keys/momo.pub
-untrusted comment: Nikki
-RWSrAXyIqregizvXvG9kJI/JoTkaCCPDy6CQrrVQ4IZ8Qgu+iWMql0UW
-EOF
-if ! grep -q "momomomo.pages.dev" /etc/opkg/customfeeds.conf 2>/dev/null; then
-    echo "src/gz momo https://momomomo.pages.dev/SNAPSHOT/aarch64_cortex-a53/momo" >> /etc/opkg/customfeeds.conf 2>/dev/null || true
-fi
-
-mkdir -p /etc/apk/keys /etc/apk/repositories.d
-cat << 'EOF' > /etc/apk/keys/momo.pem
------BEGIN PUBLIC KEY-----
-MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAETOwt83tzTFqyvjwimjuuvslR40t6
-XnROMwxZsC0iQAr2hHjuXX8qyhf5WaD2Hd897+Gc1/+4W4DMqroNp5w2Dg==
------END PUBLIC KEY-----
-EOF
-if ! grep -q "momomomo.pages.dev" /etc/apk/repositories.d/customfeeds.list 2>/dev/null; then
-    echo "https://momomomo.pages.dev/SNAPSHOT/aarch64_cortex-a53/momo/packages.adb" >> /etc/apk/repositories.d/customfeeds.list 2>/dev/null || true
-fi
 
 exit 0
