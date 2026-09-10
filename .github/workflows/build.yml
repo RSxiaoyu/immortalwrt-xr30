@@ -101,8 +101,12 @@ jobs:
           sha256sum * > sha256sums
 
           # 内容寻址: tag 由上游 rev 决定,同一上游内容重复构建时原地更新既有 Release (不产生新条目)
+          # 优先从产物文件名提取;上游改名无前缀时,从官方 profiles.json 的 version_code 兑底
           UPREV=$(ls | grep -oP '(?<=snapshot-)r[0-9]+-[0-9a-f]+' | head -n 1)
-          if [ -z "$UPREV" ]; then echo "Error: upstream rev not found in artifact filename!"; exit 1; fi
+          if [ -z "$UPREV" ]; then
+            UPREV=$(curl -sL --retry 3 "https://downloads.immortalwrt.org/snapshots/targets/mediatek/filogic/profiles.json" | grep -oP '(?<="version_code":")[^"]+' | head -n 1)
+          fi
+          if [ -z "$UPREV" ]; then echo "Error: upstream rev not found!"; exit 1; fi
           echo "release_tag=snapshot-${UPREV}" >> "$GITHUB_ENV"
           echo "Upstream rev: ${UPREV} -> release_tag=snapshot-${UPREV}"
           ls -la
