@@ -7,13 +7,14 @@ on:
   push:
     branches:
       - main
+      - snapshot
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 env:
-  IB_URL: https://downloads.immortalwrt.org/releases/25.12-SNAPSHOT/targets/mediatek/filogic/immortalwrt-imagebuilder-25.12-SNAPSHOT-mediatek-filogic.Linux-x86_64.tar.zst
+  IB_URL: https://downloads.immortalwrt.org/snapshots/targets/mediatek/filogic/immortalwrt-imagebuilder-mediatek-filogic.Linux-x86_64.tar.zst
   TZ: Asia/Shanghai
 
 permissions:
@@ -33,7 +34,7 @@ jobs:
         id: vars
         run: |
           echo "build_date=$(date +'%Y.%m.%d')" >> $GITHUB_OUTPUT
-          echo "release_tag=v25.12-$(date +'%Y%m%d%H%M')" >> $GITHUB_OUTPUT
+          echo "release_tag=v26-snapshot-$(date +'%Y%m%d%H%M')" >> $GITHUB_OUTPUT
 
       - name: Install build tools
         run: |
@@ -107,7 +108,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           tag_name: ${{ steps.vars.outputs.release_tag }}
-          name: "ImmortalWrt 25.12 for CMCC XR30 (${{ steps.vars.outputs.build_date }})"
+          name: "ImmortalWrt 26.x Snapshot for CMCC XR30 (${{ steps.vars.outputs.build_date }}) [实验通道]"
           body: |
             ### 固件信息
             - **适用设备**: 中国移动 CMCC XR30 (MT7981B / 512M DDR4 / 128M SPI-NAND / USB 3.0)

@@ -54,8 +54,8 @@ for mk in $(find target/linux/mediatek/image -name "*.mk" 2>/dev/null || find . 
 done
 
 # 3. 02_network / platform.sh 构建时从上游 master 实时拉取并注入 XR30 匹配项,
-#    避免 vendored 整份拷贝随上游漂移。
-FILIC_BASE="https://raw.githubusercontent.com/immortalwrt/immortalwrt/openwrt-25.12/target/linux/mediatek/filogic/base-files"
+#    避免 vendored 整份拷贝随上游漂移。本 snapshot 分支与 master 同源。
+FILIC_BASE="https://raw.githubusercontent.com/immortalwrt/immortalwrt/master/target/linux/mediatek/filogic/base-files"
 mkdir -p "$REPO_DIR/files/etc/board.d" "$REPO_DIR/files/lib/upgrade"
 curl -sLf --retry 3 "$FILIC_BASE/etc/board.d/02_network" -o "$REPO_DIR/files/etc/board.d/02_network"
 curl -sLf --retry 3 "$FILIC_BASE/lib/upgrade/platform.sh" -o "$REPO_DIR/files/lib/upgrade/platform.sh"
