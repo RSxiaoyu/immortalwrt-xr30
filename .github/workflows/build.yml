@@ -119,13 +119,10 @@ jobs:
           tag_name: ${{ env.release_tag }}
           name: "ImmortalWrt 26.x Snapshot for CMCC XR30 (${{ env.release_tag }} · ${{ steps.vars.outputs.build_date }})"
           body: |
-            ### 固件信息
-            - **适用设备**: 中国移动 CMCC XR30 (MT7981B / 512M DDR4 / 128M SPI-NAND / USB 3.0)
-            - **构建机制**: 官方 ImageBuilder (免源码全编译，全套官方内核驱动)
-            - **网口映射**: 完整注入 `02_network` 驱动与首开校准，WAN 绑定 `eth1` (GMAC1)，LAN 严格绑定 `lan1/lan2/lan3` 物理交换口
-            - **设备树**: 精准匹配 XR30 物理硬件（状态红白灯、按键、512MB RAM、USB 3.0 XHCI）
-            - **透明代理**: 内置 ImmortalWrt 官方 HomeProxy (sing-box 内核,插件全量生成配置,订阅即节点源,与固件同源同版本)
-            - **存储扩展**: USB 3.0 + UAS 高速传输 + ext4/vfat/exFAT 自动挂载
-            - **性能加速**: 默认开启 MTK PPE 硬件流量分载、Packet Steering 多核中断均衡、TCP BBR
-            - **管理界面**: Argon 现代主题 + TTYD 网页终端
+            - **设备**: 中国移动 CMCC XR30 (MT7981B / 512MB DDR4 / 128MB SPI-NAND)
+            - **上游**: ImmortalWrt master 主干 (26.x, Linux 6.18)，官方 ImageBuilder 打包，本仓库仅做设备适配
+            - **适配**: RAX3000M NAND DTB + 增量 overlay (fdtoverlay)；board 脚本实时拉取上游并注入 cmcc,xr30*
+            - **内置**: HomeProxy (sing-box) · LuCI + Argon + TTYD · USB 3.0 自动挂载 · PPE 硬件分载 / BBR
+            - **刷写**: U-Boot Web (192.168.1.1) 上传 itb，或 `sysupgrade -n *.itb`
+            - **回退**: [25.12 稳定通道](https://github.com/RSxiaoyu/immortalwrt-xr30/releases?q=25.12) 可直接互刷
           files: release/*
