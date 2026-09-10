@@ -107,6 +107,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           tag_name: ${{ steps.vars.outputs.release_tag }}
+          make_latest: false # 25.12 稳定回退通道，不置顶 (Latest 归 snapshot)
           name: "ImmortalWrt 25.12 for CMCC XR30 (${{ steps.vars.outputs.build_date }})"
           body: |
             ### 固件信息
