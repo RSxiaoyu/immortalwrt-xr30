@@ -71,48 +71,4 @@ if [ "$XR30_HOOKS" -ne 4 ]; then
 fi
 echo "Injected $XR30_HOOKS XR30 hooks into generated board scripts."
 
-# 4. 把 Momo 签名公钥喂给 ImageBuilder (校验本地 momo apk 包)
-mkdir -p etc/apk/keys
-cp "$REPO_DIR/files/etc/apk/keys/momo.pem" etc/apk/keys/momo.pem
-
-# 5. 自动查询并拉取 Momo 官方最新版本（完全免维护动态追踪）
-mkdir -p packages
-MOMO_URL="https://momomomo.pages.dev/SNAPSHOT/aarch64_cortex-a53/momo"
-MOMO_JSON=$(curl -sL "$MOMO_URL/index.json")
-
-MOMO_VER=$(echo "$MOMO_JSON" | jq -r '.packages["momo"] // empty')
-LUCI_MOMO_VER=$(echo "$MOMO_JSON" | jq -r '.packages["luci-app-momo"] // empty')
-LUCI_ZH_VER=$(echo "$MOMO_JSON" | jq -r '.packages["luci-i18n-momo-zh-cn"] // empty')
-
-echo "Discovered upstream Momo versions: momo=$MOMO_VER, luci-app-momo=$LUCI_MOMO_VER, zh=$LUCI_ZH_VER"
-
-if [ -n "$MOMO_VER" ]; then
-    curl -sL "$MOMO_URL/momo-${MOMO_VER}.apk" -o "packages/momo-${MOMO_VER}.apk"
-fi
-if [ -n "$LUCI_MOMO_VER" ]; then
-    curl -sL "$MOMO_URL/luci-app-momo-${LUCI_MOMO_VER}.apk" -o "packages/luci-app-momo-${LUCI_MOMO_VER}.apk"
-fi
-if [ -n "$LUCI_ZH_VER" ]; then
-    curl -sL "$MOMO_URL/luci-i18n-momo-zh-cn-${LUCI_ZH_VER}.apk" -o "packages/luci-i18n-momo-zh-cn-${LUCI_ZH_VER}.apk"
-fi
-
-# 6. 自动查询并拉取 SagerNet 官方最新正式版 sing-box（带鉴权容错，完全免维护）
-AUTH_HEADER=()
-if [ -n "$GITHUB_TOKEN" ]; then
-    AUTH_HEADER=(-H "Authorization: Bearer $GITHUB_TOKEN")
-fi
-
-SINGBOX_TAG=$(gh release view --repo SagerNet/sing-box --json tagName --jq '.tagName' 2>/dev/null || true)
-if [ -z "$SINGBOX_TAG" ]; then
-    SINGBOX_TAG=$(curl -sL "${AUTH_HEADER[@]}" https://api.github.com/repos/SagerNet/sing-box/releases/latest | jq -r '.tag_name // "v1.14.0"')
-fi
-SINGBOX_VER="${SINGBOX_TAG#v}"
-echo "Discovered upstream Sing-box latest release: v${SINGBOX_VER}"
-
-SINGBOX_APK_URL="https://github.com/SagerNet/sing-box/releases/download/v${SINGBOX_VER}/sing-box_${SINGBOX_VER}_openwrt_aarch64_cortex-a53.apk"
-echo "Fetching: $SINGBOX_APK_URL"
-curl -sL "$SINGBOX_APK_URL" -o "packages/sing-box-${SINGBOX_VER}-r0.apk" || true
-
-ls -lh packages/
-
-echo "XR30 DTB overlay, supported devices, and latest upstream packages staged successfully in ImageBuilder!"
+echo "XR30 DTB overlay, supported devices, and board scripts staged successfully in ImageBuilder!"
