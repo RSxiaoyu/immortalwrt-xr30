@@ -1,31 +1,47 @@
-# ImmortalWrt for CMCC XR30 (ubootmod)
+# ImmortalWrt for CMCC XR30
 
-[![Build](https://github.com/RSxiaoyu/immortalwrt-xr30/actions/workflows/build.yml/badge.svg?branch=main)](https://github.com/RSxiaoyu/immortalwrt-xr30/actions/workflows/build.yml)
+[![Build](https://github.com/RSxiaoyu/immortalwrt-xr30/actions/workflows/build.yml/badge.svg)](https://github.com/RSxiaoyu/immortalwrt-xr30/actions/workflows/build.yml)
 
-专为 **中国移动 CMCC XR30** 打造的纯粹上游 ImmortalWrt 25.12 固件构建仓库。
+**中国移动 CMCC XR30**（MT7981B / 512MB DDR4 / 128MB SPI-NAND）专属固件。
 
-基于官方 **ImageBuilder (镜像生成器)** 架构重构，跳过冗长的工具链与内核重复编译，**2 分钟极速打包出炉**，100% 享受官方稳定内核与预编译软件源生态。
+设计原则：**上游优先，不 fork、不整编** —— 用官方 ImageBuilder 直接打包固件，本仓库只维护 XR30 必需的设备适配，其余一切跟随上游。
 
-## 特性
-- **构建机制**：官方 ImageBuilder 引擎打包，2 分钟全速直出，零编译报错风险。
-- **架构**：全合一 FIT 单镜像 (`sysupgrade.itb`)，原生 `fitblk` 挂载。
-- **直通**：专为 `ubootmod` 打造，废除 NMBM，原生 MTD/UBI 直通（UBI 卷空间 122.5MB，可用磁盘 90MB+）。
-- **硬件**：精准注入 XR30 专用 DTB，红白状态灯、WPS/Mesh 按键、独立千兆 WAN/LAN、USB 3.0 完全校准，完整启用 512MB DDR4。
-- **存储扩展**：内置 USB 3.0 (UAS 加速) 及 ext4/vfat/exFAT 自动挂载。
-- **性能**：Linux 6.12 + DSA 架构 + WED 硬件加速 + MTK PPE 硬件流量分载 + Packet Steering 多核分发 + BBR 拥塞控制。
-- **透明代理**：内置 ImmortalWrt 官方 [HomeProxy](https://github.com/immortalwrt/homeproxy)（sing-box 内核，插件全量生成配置，订阅即节点源），与固件同源同版本，免第三方 feed。
-- **扩展与终端**：内置 TTYD 网页终端与 Argon 现代主题。
-- **免维护**：每周一凌晨定时同步 ImmortalWrt 官方源最新版（含 HomeProxy / sing-box / 内核）。
+## 上游
+
+| 组件 | 上游 | 本仓库的动作 |
+|---|---|---|
+| 系统 / 内核 / 软件包 | [ImmortalWrt 官方](https://github.com/immortalwrt/immortalwrt) | 用对应通道的 ImageBuilder 原样打包，零源码 fork |
+| 设备适配 | 上游内置 CMCC RAX3000M（NAND） | 官方 DTB 为基底 + [62 行增量 overlay](dts/mt7981b-cmcc-xr30-nand.dtso)，构建时 fdtoverlay 合成 |
+| 网络 / 升级脚本 | 上游 `02_network` / `platform.sh` | 构建时从上游实时拉取，仅注入 `cmcc,xr30*` 三处匹配项 |
+| 透明代理 | [HomeProxy](https://github.com/immortalwrt/homeproxy)（ImmortalWrt 官方插件，sing-box 内核） | 随固件打包，与系统同源同版本 |
+| Bootloader | [bl-mt798x-xr30](https://github.com/RSxiaoyu/bl-mt798x-xr30)（上游 [Yuzhii0718/bl-mt798x-dhcpd](https://github.com/Yuzhii0718/bl-mt798x-dhcpd)） | 独立仓库构建 |
+
+## 构建通道
+
+| 分支 | 上游 | 内核 | 构建方式 |
+|---|---|---|---|
+| `snapshot`（默认） | master 主干（26.x） | Linux 6.18 | 每周一 04:00（UTC+8）自动 |
+| `main` | `openwrt-25.12` 稳定分支 | Linux 6.12 | 按需（push / 手动触发） |
+
+Release tag 按上游版本号编址（如 `snapshot-r40943-1e53c0ae5a`）：同一上游内容的重复构建原地更新既有 Release，不产生重复条目。
+
+## 固件内容
+
+- LuCI（中文）+ Argon 主题 + TTYD 终端
+- HomeProxy（sing-box）：订阅即节点源，插件全量生成配置
+- USB 3.0 自动挂载（UAS / ext4 / vfat / exFAT）
+- 默认启用：MTK PPE 硬件流量分载、Packet Steering、TCP BBR
 
 ## 硬件规格
-| 项 | 规格 |
-| :--- | :--- |
-| **SoC** | MediaTek MT7981B (双核 Cortex-A53 @ 1.3GHz) |
-| **内存 / 闪存** | 512MB DDR4 / 128MB SPI-NAND (GD5F1GM7) |
-| **网口 / USB** | 1 × GE WAN, 3 × GE LAN (MT7531AE 交换芯片直通) / 1 × USB 3.0 |
-| **无线** | 2.4G (574M) + 5G (2402M @ 160MHz), mt76 开源驱动 |
 
-## 刷写与使用
-1. **升级固件**：在 [bl-mt798x-xr30](https://github.com/RSxiaoyu/bl-mt798x-xr30) U-Boot Web 恢复控制台 (`192.168.1.1`) 直接上传 `*sysupgrade.itb` 刷入；或在运行系统中执行 `sysupgrade -n *.itb`。
-2. **默认管理**：`192.168.1.1` ｜ 用户名：`root` ｜ 默认无密码。
-3. **HomeProxy 代理**：LuCI → 服务 → HomeProxy，填入订阅即可使用；sing-box 由官方源随固件提供。
+| 项 | 规格 |
+|---|---|
+| SoC | MediaTek MT7981B（双核 Cortex-A53 @ 1.3GHz） |
+| 内存 / 闪存 | 512MB DDR4 / 128MB SPI-NAND |
+| 网口 / USB | 1× GE WAN（eth1）+ 3× GE LAN（MT7531AE）/ USB 3.0 |
+| 无线 | 2.4G 574M + 5G 2402M @ 160MHz，mt76 开源驱动 |
+
+## 刷写
+
+1. [bl-mt798x-xr30](https://github.com/RSxiaoyu/bl-mt798x-xr30) U-Boot Web 恢复控制台（`192.168.1.1`）直接上传 `*sysupgrade.itb`；或在运行系统中 `sysupgrade -n *.itb`
+2. 管理：`192.168.1.1` ｜ `root` ｜ 默认无密码（请自行修改）
