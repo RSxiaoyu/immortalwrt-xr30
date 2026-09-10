@@ -31,7 +31,6 @@ jobs:
         id: vars
         run: |
           echo "build_date=$(date +'%Y.%m.%d')" >> $GITHUB_OUTPUT
-          echo "release_tag=v25.12-$(date +'%Y%m%d%H%M')" >> $GITHUB_OUTPUT
 
       - name: Install build tools
         run: |
@@ -97,6 +96,12 @@ jobs:
           fi
 
           sha256sum * > sha256sums
+
+          # 内容寻址: tag 由上游 rev 决定,同一上游内容重复构建时原地更新既有 Release (不产生新条目)
+          UPREV=$(ls | grep -oP '(?<=snapshot-)r[0-9]+-[0-9a-f]+' | head -n 1)
+          if [ -z "$UPREV" ]; then echo "Error: upstream rev not found in artifact filename!"; exit 1; fi
+          echo "release_tag=25.12-${UPREV}" >> "$GITHUB_ENV"
+          echo "Upstream rev: ${UPREV} -> release_tag=25.12-${UPREV}"
           ls -la
 
       - name: Create GitHub Release
@@ -104,8 +109,8 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          tag_name: ${{ steps.vars.outputs.release_tag }}
-          name: "ImmortalWrt 25.12 for CMCC XR30 (${{ steps.vars.outputs.build_date }})"
+          tag_name: ${{ env.release_tag }}
+          name: "ImmortalWrt 25.12 for CMCC XR30 (${{ env.release_tag }} · ${{ steps.vars.outputs.build_date }})"
           body: |
             ### 固件信息
             - **适用设备**: 中国移动 CMCC XR30 (MT7981B / 512M DDR4 / 128M SPI-NAND / USB 3.0)
