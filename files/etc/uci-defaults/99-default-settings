@@ -1,12 +1,14 @@
 #!/bin/sh
 
-# 1. 运行时补全平台升级与网络映射兼容 (防止后续 sysupgrade 拒刷)
-if [ -f /lib/upgrade/platform.sh ] && ! grep -q "cmcc,xr30" /lib/upgrade/platform.sh; then
-    sed -i 's/cmcc,rax3000m\\|/cmcc,rax3000m\\|cmcc,xr30*\\|/g' /lib/upgrade/platform.sh 2>/dev/null || true
-fi
-if [ -f /etc/board.d/02_network ] && ! grep -q "cmcc,xr30" /etc/board.d/02_network; then
-    sed -i 's/cmcc,rax3000m\\|/cmcc,rax3000m\\|cmcc,xr30*\\|/g' /etc/board.d/02_network 2>/dev/null || true
-fi
+# 1. 强制纠偏网络物理接口映射 (确保护航：WAN 绑定真实硬件 gmac1/eth1，LAN 桥接绑定 lan1 lan2 lan3)
+uci -q set network.lan.device='br-lan'
+uci -q set network.lan_dev=device
+uci -q set network.lan_dev.name='br-lan'
+uci -q set network.lan_dev.type='bridge'
+uci -q set network.lan_dev.ports='lan1 lan2 lan3'
+uci -q set network.wan.device='eth1'
+uci -q set network.wan6.device='eth1'
+uci -q commit network || true
 
 # 2. 开启防火墙硬件流量分载 (MTK PPE / HNAT) 与软件分载
 uci -q set firewall.@defaults[0].flow_offloading='1'
