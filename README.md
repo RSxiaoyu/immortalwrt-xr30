@@ -1,8 +1,8 @@
 # ImmortalWrt for CMCC XR30 (ubootmod)
 
-[![Build](https://github.com/RSxiaoyu/immortalwrt-xr30/actions/workflows/build.yml/badge.svg?branch=main)](https://github.com/RSxiaoyu/immortalwrt-xr30/actions/workflows/build.yml)
+[![Build](https://github.com/RSxiaoyu/immortalwrt-xr30/actions/workflows/build.yml/badge.svg?branch=snapshot)](https://github.com/RSxiaoyu/immortalwrt-xr30/actions/workflows/build.yml)
 
-专为 **中国移动 CMCC XR30** 打造的纯粹上游 ImmortalWrt 25.12 固件构建仓库。
+专为 **中国移动 CMCC XR30** 打造的纯粹上游 ImmortalWrt 固件构建仓库。本分支（`snapshot`，仓库默认分支）跟随上游 **master 主干（26.x，Linux 6.18）** 每周自动构建；稳定通道（Linux 6.12）见 [`main` 分支](https://github.com/RSxiaoyu/immortalwrt-xr30/tree/main)。
 
 基于官方 **ImageBuilder (镜像生成器)** 架构重构，跳过冗长的工具链与内核重复编译，**2 分钟极速打包出炉**，100% 享受官方稳定内核与预编译软件源生态。
 
