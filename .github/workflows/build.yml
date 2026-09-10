@@ -79,8 +79,8 @@ jobs:
           echo "Generated raw files:"
           ls -la *rax3000m* 2>/dev/null || true
 
-          # 将生成的固件与元数据映射为 XR30 专用固件包
-          for f in *rax3000m*; do
+          # 只保留 sysupgrade.itb + manifest，滤除 eMMC 引导产物（XR30 为 NAND 设备，bootloader 归 bl-mt798x-xr30 仓库管）
+          for f in *rax3000m-squashfs-sysupgrade.itb *rax3000m.manifest; do
             [ -f "$f" ] || continue
             TARGET_NAME=$(echo "$f" | sed 's/cmcc_rax3000m/cmcc_xr30-nand/g')
             cp -v "$f" "$GITHUB_WORKSPACE/release/$TARGET_NAME"
