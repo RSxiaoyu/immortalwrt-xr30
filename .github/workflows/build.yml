@@ -108,8 +108,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           tag_name: ${{ steps.vars.outputs.release_tag }}
-          make_latest: true # 默认分支/主线通道，Release 恒置顶
-          name: "ImmortalWrt 26.x Snapshot for CMCC XR30 (${{ steps.vars.outputs.build_date }})"
+          name: "ImmortalWrt 26.x Snapshot for CMCC XR30 (${{ steps.vars.outputs.build_date }}) [实验通道]"
           body: |
             ### 固件信息
             - **适用设备**: 中国移动 CMCC XR30 (MT7981B / 512M DDR4 / 128M SPI-NAND / USB 3.0)
