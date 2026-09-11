@@ -49,60 +49,108 @@ let profile = load_profile();
 // 1. 基础 UCI 配置合并
 profile = merge(profile, trim_all(config));
 
-// 2. 自动补全透明代理入站 (解决机场原生订阅缺少 dns-in / redirect-in / tun-in 报错)
+// 2. 自动兼容/迁移旧版订阅中的 legacy DNS 格式 (sing-box 1.14.0 规范)
+let local_dns_tag = 'local';
+if (profile.dns && profile.dns.servers) {
+	for (let s in profile.dns.servers) {
+		if (s.address) {
+			if (s.address == 'local') {
+				s.type = 'local';
+				local_dns_tag = s.tag;
+				delete s.address;
+			} else if (s.address == 'fakeip') {
+				s.type = 'fakeip';
+				delete s.address;
+				if (!s.inet4_range) s.inet4_range = '198.18.0.0/15';
+			} else if (index(s.address, 'https://') == 0) {
+				s.type = 'https';
+				let rest = substr(s.address, 8);
+				let slash = index(rest, '/');
+				if (slash >= 0) {
+					s.path = substr(rest, slash);
+					s.server = substr(rest, 0, slash);
+				} else {
+					s.server = rest;
+				}
+				delete s.address;
+				if (s.address_resolver) {
+					s.domain_resolver = s.address_resolver;
+					delete s.address_resolver;
+				} else if (!s.domain_resolver) {
+					s.domain_resolver = local_dns_tag;
+				}
+			} else if (index(s.address, 'tls://') == 0) {
+				s.type = 'tls';
+				s.server = substr(s.address, 6);
+				delete s.address;
+				if (s.address_resolver) {
+					s.domain_resolver = s.address_resolver;
+					delete s.address_resolver;
+				} else if (!s.domain_resolver) {
+					s.domain_resolver = local_dns_tag;
+				}
+			} else {
+				s.type = 'udp';
+				s.server = s.address;
+				delete s.address;
+			}
+		}
+	}
+}
+if (profile.dns && profile.dns.fakeip) {
+	delete profile.dns.fakeip;
+}
+
+// 3. 自动注入基础透明代理入站 (解决机场订阅缺少 router-inbounds)
 if (!profile.inbounds) {
 	profile.inbounds = [];
 }
 
-function has_inbound(tag) {
-	for (let ib in profile.inbounds) {
-		if (ib.tag == tag) return true;
+let clean_inbounds = [];
+for (let ib in profile.inbounds) {
+	if (ib.tag != 'tun-in' && ib.tag != 'dns-in' && ib.tag != 'redirect-in' && ib.tag != 'tproxy-in') {
+		push(clean_inbounds, ib);
 	}
-	return false;
 }
+profile.inbounds = clean_inbounds;
 
-if (!has_inbound('dns-in')) {
-	push(profile.inbounds, {
-		"type": "direct",
-		"tag": "dns-in",
-		"listen": "::",
-		"listen_port": 6450
-	});
-}
+push(profile.inbounds, {
+	"type": "direct",
+	"tag": "dns-in",
+	"listen": "::",
+	"listen_port": 6450
+});
 
-if (!has_inbound('redirect-in')) {
-	push(profile.inbounds, {
-		"type": "redirect",
-		"tag": "redirect-in",
-		"listen": "::",
-		"listen_port": 7892
-	});
-}
+push(profile.inbounds, {
+	"type": "redirect",
+	"tag": "redirect-in",
+	"listen": "::",
+	"listen_port": 7892
+});
 
-if (!has_inbound('tproxy-in')) {
-	push(profile.inbounds, {
-		"type": "tproxy",
-		"tag": "tproxy-in",
-		"listen": "::",
-		"listen_port": 7895
-	});
-}
+push(profile.inbounds, {
+	"type": "tproxy",
+	"tag": "tproxy-in",
+	"listen": "::",
+	"listen_port": 7895
+});
 
-if (!has_inbound('tun-in')) {
-	push(profile.inbounds, {
-		"type": "tun",
-		"tag": "tun-in",
-		"interface_name": "momo-tun",
-		"inet4_address": "172.19.0.1/30",
-		"auto_route": false,
-		"strict_route": false,
-		"stack": "system"
-	});
-}
+push(profile.inbounds, {
+	"type": "tun",
+	"tag": "tun-in",
+	"interface_name": "momo-tun",
+	"address": ["172.19.0.1/30"],
+	"auto_route": false,
+	"strict_route": false,
+	"stack": "system"
+});
 
-// 3. 补全 DNS 劫持路由规则
+// 4. 路由规则兼容与 DNS 劫持
 if (!profile.route) {
 	profile.route = {};
+}
+if (!profile.route.default_domain_resolver) {
+	profile.route.default_domain_resolver = local_dns_tag;
 }
 if (!profile.route.rules) {
 	profile.route.rules = [];
@@ -122,13 +170,27 @@ if (!has_dns_rule) {
 	});
 }
 
-// 4. 支持外置自定义混入文件 /etc/momo/mixin.json
+// 5. 支持外置自定义混入文件 /etc/momo/mixin.json
 const custom_mixin_raw = readfile('/etc/momo/mixin.json');
 if (custom_mixin_raw) {
 	const custom_mixin = json(custom_mixin_raw);
 	if (custom_mixin) {
 		profile = merge(profile, custom_mixin);
 	}
+}
+
+// 6. 确保 Clash API / Zashboard 监听所有接口 (0.0.0.0:9090)，允许手机与局域网设备直接访问面板
+if (!profile.experimental) {
+	profile.experimental = {};
+}
+if (!profile.experimental.clash_api) {
+	profile.experimental.clash_api = {};
+}
+if (!profile.experimental.clash_api.external_controller || index(profile.experimental.clash_api.external_controller, '127.0.0.1') == 0) {
+	profile.experimental.clash_api.external_controller = '0.0.0.0:9090';
+}
+if (!profile.experimental.clash_api.external_ui) {
+	profile.experimental.clash_api.external_ui = 'ui';
 }
 
 save_profile(profile);

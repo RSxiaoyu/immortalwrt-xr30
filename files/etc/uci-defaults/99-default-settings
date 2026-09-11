@@ -24,4 +24,7 @@ uci -q set wireless.radio1.band='5g'
 uci -q set wireless.radio1.htmode='HE160'
 uci -q commit wireless || true
 
+uci -q set momo.mixin.external_control_api_listen='0.0.0.0:9090'
+uci -q commit momo || true
+
 exit 0
