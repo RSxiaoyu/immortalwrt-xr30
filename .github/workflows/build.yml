@@ -38,7 +38,7 @@ jobs:
       - name: Install build tools
         run: |
           sudo apt-get -qq update
-          sudo apt-get -qq install zstd libssl-dev libncurses-dev device-tree-compiler
+          sudo apt-get -qq install zstd libssl-dev libncurses-dev jq device-tree-compiler
 
       - name: Download official ImageBuilder
         run: |
@@ -52,6 +52,8 @@ jobs:
           echo "Extracted to $IB_DIR"
 
       - name: Inject XR30 profile and device tree
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           chmod +x "$GITHUB_WORKSPACE/scripts/inject_xr30.sh"
           "$GITHUB_WORKSPACE/scripts/inject_xr30.sh" "$IB_DIR" "$GITHUB_WORKSPACE/dts/mt7981b-cmcc-xr30-nand.dtso"
@@ -62,9 +64,9 @@ jobs:
 
           find "$GITHUB_WORKSPACE/files" -type f -exec chmod +x {} + 2>/dev/null || true
 
-          PACKAGES_LIST="kmod-nft-socket kmod-nft-tproxy kmod-tun kmod-tcp-bbr kmod-usb3 kmod-usb-storage kmod-usb-storage-uas kmod-fs-ext4 kmod-fs-vfat kmod-fs-exfat automount luci luci-i18n-base-zh-cn luci-i18n-package-manager-zh-cn luci-theme-argon luci-app-ttyd luci-i18n-ttyd-zh-cn curl ca-bundle ip-full luci-app-homeproxy luci-i18n-homeproxy-zh-cn"
+          PACKAGES_LIST="kmod-dummy kmod-nft-socket kmod-nft-tproxy kmod-tun kmod-inet-diag kmod-netlink-diag kmod-tcp-bbr kmod-usb3 kmod-usb-storage kmod-usb-storage-uas kmod-fs-ext4 kmod-fs-vfat kmod-fs-exfat automount luci luci-i18n-base-zh-cn luci-i18n-package-manager-zh-cn luci-theme-argon luci-app-ttyd luci-i18n-ttyd-zh-cn curl ca-bundle ip-full momo luci-app-momo luci-i18n-momo-zh-cn sing-box"
 
-          echo "Packaging firmware with USB 3.0, UAS and HomeProxy..."
+          echo "Packaging firmware with USB 3.0, UAS, Momo and Sing-box..."
           make image PROFILE=cmcc_rax3000m \
             PACKAGES="$PACKAGES_LIST" \
             FILES="$GITHUB_WORKSPACE/files"
@@ -122,7 +124,7 @@ jobs:
             - **设备**: 中国移动 CMCC XR30 (MT7981B / 512MB DDR4 / 128MB SPI-NAND)
             - **上游**: ImmortalWrt master 主干 (26.x, Linux 6.18)，官方 ImageBuilder 打包，本仓库仅做设备适配
             - **适配**: RAX3000M NAND DTB + 增量 overlay (fdtoverlay)；board 脚本实时拉取上游并注入 cmcc,xr30*
-            - **内置**: HomeProxy (sing-box) · LuCI + Argon + TTYD · USB 3.0 自动挂载 · PPE 硬件分载 / BBR
+            - **内置**: Momo + sing-box（Dashboard 全节点自动测速） · LuCI + Argon + TTYD · USB 3.0 自动挂载 · PPE 硬件分载 / BBR
             - **刷写**: U-Boot Web (192.168.1.1) 上传 itb，或 `sysupgrade -n *.itb`
             - **回退**: [25.12 稳定通道](https://github.com/RSxiaoyu/immortalwrt-xr30/releases?q=25.12) 可直接互刷
           files: release/*
