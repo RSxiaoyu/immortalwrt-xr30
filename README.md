@@ -13,7 +13,7 @@
 | 系统 / 内核 / 软件包 | [ImmortalWrt 官方](https://github.com/immortalwrt/immortalwrt) | 用对应通道的 ImageBuilder 原样打包，零源码 fork |
 | 设备适配 | 上游内置 CMCC RAX3000M（NAND） | 官方 DTB 为基底 + [62 行增量 overlay](dts/mt7981b-cmcc-xr30-nand.dtso)，构建时 fdtoverlay 合成 |
 | 网络 / 升级脚本 | 上游 `02_network` / `platform.sh` | 构建时从上游实时拉取，仅注入 `cmcc,xr30*` 三处匹配项 |
-| 透明代理 | [HomeProxy](https://github.com/immortalwrt/homeproxy)（ImmortalWrt 官方插件，sing-box 内核） | 随固件打包，与系统同源同版本 |
+| 透明代理 | [OpenWrt-momo](https://github.com/nikkinikki-org/OpenWrt-momo)（管理）+ [sing-box](https://github.com/SagerNet/sing-box)（内核） | 随固件打包，Dashboard 支持全节点自动测速 |
 | Bootloader | [bl-mt798x-xr30](https://github.com/RSxiaoyu/bl-mt798x-xr30)（上游 [Yuzhii0718/bl-mt798x-dhcpd](https://github.com/Yuzhii0718/bl-mt798x-dhcpd)） | 独立仓库构建 |
 
 ## 构建通道
@@ -28,7 +28,7 @@ Release tag 按上游版本号编址（如 `snapshot-r40943-1e53c0ae5a`）：同
 ## 固件内容
 
 - LuCI（中文）+ Argon 主题 + TTYD 终端
-- HomeProxy（sing-box）：订阅即节点源，插件全量生成配置
+- Momo + sing-box：订阅即节点源，Dashboard 全节点自动测速
 - USB 3.0 自动挂载（UAS / ext4 / vfat / exFAT）
 - 默认启用：MTK PPE 硬件流量分载、Packet Steering、TCP BBR
 
