@@ -179,18 +179,4 @@ if (custom_mixin_raw) {
 	}
 }
 
-// 6. 确保 Clash API / Zashboard 监听所有接口 (0.0.0.0:9090)，允许手机与局域网设备直接访问面板
-if (!profile.experimental) {
-	profile.experimental = {};
-}
-if (!profile.experimental.clash_api) {
-	profile.experimental.clash_api = {};
-}
-if (!profile.experimental.clash_api.external_controller || index(profile.experimental.clash_api.external_controller, '127.0.0.1') == 0) {
-	profile.experimental.clash_api.external_controller = '0.0.0.0:9090';
-}
-if (!profile.experimental.clash_api.external_ui) {
-	profile.experimental.clash_api.external_ui = 'ui';
-}
-
 save_profile(profile);

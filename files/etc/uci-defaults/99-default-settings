@@ -24,6 +24,10 @@ uci -q set wireless.radio1.band='5g'
 uci -q set wireless.radio1.htmode='HE160'
 uci -q commit wireless || true
 
+# 5. 预设 Momo 首次开机默认值 (提供合理初值，用户可在 WebUI 任意修改覆盖)
+uci -q set momo.proxy.lan_inbound_interface='lan'
+uci -q set momo.proxy.tcp_mode='tproxy'
+uci -q set momo.proxy.udp_mode='tproxy'
 uci -q set momo.mixin.external_control_api_listen='0.0.0.0:9090'
 uci -q commit momo || true
 
