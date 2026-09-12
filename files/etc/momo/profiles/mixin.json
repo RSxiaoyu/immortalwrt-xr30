@@ -1,0 +1,19 @@
+{
+  "_comment": "GUI.for.SingBox 风格智能混入配置。在 WebUI 在线编辑保存后重启即可生效，更新订阅绝不丢失",
+  "prepend_rules": [
+    {
+      "domain_suffix": [
+        "claude.ai",
+        "anthropic.com",
+        "openai.com"
+      ],
+      "outbound": "节点选择"
+    }
+  ],
+  "append_rules": [
+  ],
+  "rule_set": [
+  ],
+  "outbounds": [
+  ]
+}
