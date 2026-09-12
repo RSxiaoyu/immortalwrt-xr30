@@ -49,11 +49,11 @@
     {
       "tag": "Gemini-Auto",
       "type": "urltest",
-      "include": "新加坡|SG",
-      "exclude": "流量|到期",
+      "include": "美国|US|圣何塞|洛杉矶",
+      "exclude": "0.01倍|流量|到期",
       "url": "https://alkalimakersuite-pa.clients6.google.com/generate_204",
-      "interval": "10m",
-      "tolerance": 150
+      "interval": "5m",
+      "tolerance": 50
     }
   ]
 }
