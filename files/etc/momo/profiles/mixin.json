@@ -3,8 +3,8 @@
     { "ip_is_private": true, "outbound": "DIRECT" },
     { "protocol": ["bittorrent"], "outbound": "DIRECT" },
     { "rule_set": "geosite-ads", "action": "reject" },
-    { "domain_suffix": ["accounts.google.com", "myaccount.google.com"], "outbound": "Gemini-Auto" },
     { "rule_set": "geosite-gemini", "outbound": "Gemini-Auto" },
+    { "rule_set": "geosite-google", "outbound": "Gemini-Auto" },
     { "rule_set": "geosite-ai", "outbound": "AI网站" },
     { "rule_set": "geosite-cn", "outbound": "DIRECT" }
   ],
@@ -21,6 +21,13 @@
       "type": "remote",
       "format": "binary",
       "url": "https://testingcf.jsdelivr.net/gh/MetaCubeX/meta-rules-dat@sing/geo/geosite/google-gemini.srs",
+      "download_detour": "DIRECT"
+    },
+    {
+      "tag": "geosite-google",
+      "type": "remote",
+      "format": "binary",
+      "url": "https://testingcf.jsdelivr.net/gh/MetaCubeX/meta-rules-dat@sing/geo/geosite/google.srs",
       "download_detour": "DIRECT"
     },
     {
@@ -42,10 +49,11 @@
     {
       "tag": "Gemini-Auto",
       "type": "urltest",
-      "exclude": "香港|HK|AWS|流量|到期",
+      "include": "新加坡|SG",
+      "exclude": "流量|到期",
       "url": "https://alkalimakersuite-pa.clients6.google.com/generate_204",
-      "interval": "5m",
-      "tolerance": 50
+      "interval": "10m",
+      "tolerance": 150
     }
   ]
 }
