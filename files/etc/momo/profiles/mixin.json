@@ -3,9 +3,6 @@
     { "ip_is_private": true, "outbound": "DIRECT" },
     { "protocol": ["bittorrent"], "outbound": "DIRECT" },
     { "rule_set": "geosite-ads", "action": "reject" },
-    { "rule_set": "geosite-gemini", "outbound": "Gemini-Auto" },
-    { "rule_set": "geosite-google", "outbound": "Gemini-Auto" },
-    { "rule_set": "geosite-ai", "outbound": "AI网站" },
     { "rule_set": "geosite-cn", "outbound": "DIRECT" }
   ],
   "rule_set": [
@@ -17,43 +14,11 @@
       "download_detour": "DIRECT"
     },
     {
-      "tag": "geosite-gemini",
-      "type": "remote",
-      "format": "binary",
-      "url": "https://testingcf.jsdelivr.net/gh/MetaCubeX/meta-rules-dat@sing/geo/geosite/google-gemini.srs",
-      "download_detour": "DIRECT"
-    },
-    {
-      "tag": "geosite-google",
-      "type": "remote",
-      "format": "binary",
-      "url": "https://testingcf.jsdelivr.net/gh/MetaCubeX/meta-rules-dat@sing/geo/geosite/google.srs",
-      "download_detour": "DIRECT"
-    },
-    {
-      "tag": "geosite-ai",
-      "type": "remote",
-      "format": "binary",
-      "url": "https://testingcf.jsdelivr.net/gh/MetaCubeX/meta-rules-dat@sing/geo/geosite/category-ai-chat-!cn.srs",
-      "download_detour": "DIRECT"
-    },
-    {
       "tag": "geosite-cn",
       "type": "remote",
       "format": "binary",
       "url": "https://testingcf.jsdelivr.net/gh/MetaCubeX/meta-rules-dat@sing/geo/geosite/cn.srs",
       "download_detour": "DIRECT"
-    }
-  ],
-  "outbounds": [
-    {
-      "tag": "Gemini-Auto",
-      "type": "urltest",
-      "include": "美国|US|圣何塞|洛杉矶",
-      "exclude": "0.01倍|流量|到期",
-      "url": "https://alkalimakersuite-pa.clients6.google.com/generate_204",
-      "interval": "5m",
-      "tolerance": 50
     }
   ]
 }
