@@ -31,4 +31,6 @@ uci -q set momo.proxy.udp_mode='tproxy'
 uci -q set momo.mixin.external_control_api_listen='0.0.0.0:9090'
 uci -q commit momo || true
 
+ln -sf /etc/momo/profiles/mixin.json /etc/momo/mixin.json 2>/dev/null || true
+
 exit 0
