@@ -41,6 +41,7 @@
     {
       "tag": "Gemini-Auto",
       "type": "urltest",
+      "exclude": "香港|HK",
       "url": "https://alkalimakersuite-pa.clients6.google.com/generate_204",
       "interval": "5m",
       "tolerance": 50

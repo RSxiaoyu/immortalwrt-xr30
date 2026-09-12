@@ -170,7 +170,7 @@ if (!has_dns_rule) {
 	});
 }
 
-// 5. GUI.for.SingBox 风格智能 Mixin 引擎 (支持 prepend_rules, append_rules, rule_set, outbounds 动态节点注入)
+// 5. GUI.for.SingBox 风格智能 Mixin 引擎
 function load_mixin_config() {
 	const paths = ['/etc/momo/profiles/mixin.json', '/etc/momo/mixin.json'];
 	for (let p in paths) {
@@ -197,23 +197,36 @@ if (mixin) {
 		}
 	}
 
-	// B. 自定义出站 outbounds 合并 (支持空 outbounds 动态注入非香港代理节点)
+	// B. 自定义出站 outbounds 合并 (原生对齐 GfS 的 include / exclude 正则动态过滤)
 	if (mixin.outbounds && type(mixin.outbounds) == 'array') {
 		if (!profile.outbounds) profile.outbounds = [];
 
-		let candidate_proxy_nodes = [];
+		let all_proxy_nodes = [];
 		for (let p_ob in profile.outbounds) {
 			if (p_ob.type != 'selector' && p_ob.type != 'urltest' && p_ob.type != 'direct' && p_ob.type != 'block') {
-				if (index(p_ob.tag, '香港') < 0 && index(p_ob.tag, 'HK') < 0) {
-					push(candidate_proxy_nodes, p_ob.tag);
-				}
+				push(all_proxy_nodes, p_ob.tag);
 			}
 		}
 
 		for (let ob in mixin.outbounds) {
-			if (ob.type == 'urltest' && (!ob.outbounds || length(ob.outbounds) == 0)) {
-				ob.outbounds = candidate_proxy_nodes;
+			if (ob.type == 'urltest' || ob.type == 'selector') {
+				if (ob.include || ob.exclude || !ob.outbounds || length(ob.outbounds) == 0) {
+					let inc_re = ob.include ? regexp(ob.include, 'i') : null;
+					let exc_re = ob.exclude ? regexp(ob.exclude, 'i') : null;
+
+					let source_nodes = (ob.outbounds && length(ob.outbounds) > 0) ? ob.outbounds : all_proxy_nodes;
+					let filtered_nodes = [];
+					for (let tag in source_nodes) {
+						if (inc_re && !match(tag, inc_re)) continue;
+						if (exc_re && match(tag, exc_re)) continue;
+						push(filtered_nodes, tag);
+					}
+					ob.outbounds = filtered_nodes;
+					delete ob.include;
+					delete ob.exclude;
+				}
 			}
+
 			let found = false;
 			for (let ex in profile.outbounds) {
 				if (ex.tag == ob.tag) { found = true; break; }
