@@ -170,7 +170,7 @@ if (!has_dns_rule) {
 	});
 }
 
-// 5. GUI.for.SingBox 风格智能 Mixin 引擎 (支持 prepend_rules, append_rules, rule_set, outbounds)
+// 5. GUI.for.SingBox 风格智能 Mixin 引擎 (支持 prepend_rules, append_rules, rule_set, outbounds 动态节点注入)
 function load_mixin_config() {
 	const paths = ['/etc/momo/profiles/mixin.json', '/etc/momo/mixin.json'];
 	for (let p in paths) {
@@ -197,10 +197,23 @@ if (mixin) {
 		}
 	}
 
-	// B. 自定义出站 outbounds 合并 (按 tag 去重追加)
+	// B. 自定义出站 outbounds 合并 (支持空 outbounds 动态注入非香港代理节点)
 	if (mixin.outbounds && type(mixin.outbounds) == 'array') {
 		if (!profile.outbounds) profile.outbounds = [];
+
+		let candidate_proxy_nodes = [];
+		for (let p_ob in profile.outbounds) {
+			if (p_ob.type != 'selector' && p_ob.type != 'urltest' && p_ob.type != 'direct' && p_ob.type != 'block') {
+				if (index(p_ob.tag, '香港') < 0 && index(p_ob.tag, 'HK') < 0) {
+					push(candidate_proxy_nodes, p_ob.tag);
+				}
+			}
+		}
+
 		for (let ob in mixin.outbounds) {
+			if (ob.type == 'urltest' && (!ob.outbounds || length(ob.outbounds) == 0)) {
+				ob.outbounds = candidate_proxy_nodes;
+			}
 			let found = false;
 			for (let ex in profile.outbounds) {
 				if (ex.tag == ob.tag) { found = true; break; }
@@ -209,7 +222,7 @@ if (mixin) {
 		}
 	}
 
-	// C. 前置分流规则 prepend_rules (插入到 hijack-dns 之后，优于机场订阅全部分流规则)
+	// C. 前置分流规则 prepend_rules (插入到 hijack-dns 之后)
 	if (mixin.prepend_rules && type(mixin.prepend_rules) == 'array') {
 		let insert_idx = 0;
 		for (let i = 0; i < length(profile.route.rules); i++) {
