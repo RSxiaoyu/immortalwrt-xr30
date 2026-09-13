@@ -61,7 +61,7 @@ jobs:
 
           find "$GITHUB_WORKSPACE/files" -type f -exec chmod +x {} + 2>/dev/null || true
 
-          PACKAGES_LIST="kmod-dummy kmod-nft-socket kmod-nft-tproxy kmod-tun kmod-inet-diag kmod-netlink-diag kmod-tcp-bbr kmod-usb3 kmod-usb-storage kmod-usb-storage-uas kmod-fs-ext4 kmod-fs-vfat kmod-fs-exfat automount luci luci-i18n-base-zh-cn luci-i18n-package-manager-zh-cn luci-theme-argon luci-app-ttyd luci-i18n-ttyd-zh-cn curl ca-bundle ip-full momo luci-app-momo luci-i18n-momo-zh-cn sing-box"
+          PACKAGES_LIST="kmod-dummy kmod-nft-socket kmod-nft-tproxy kmod-tun kmod-inet-diag kmod-netlink-diag kmod-tcp-bbr kmod-usb3 kmod-usb-storage kmod-usb-storage-uas kmod-fs-ext4 kmod-fs-vfat kmod-fs-exfat automount luci luci-i18n-base-zh-cn luci-i18n-firewall-zh-cn luci-i18n-package-manager-zh-cn luci-theme-argon luci-app-ttyd luci-i18n-ttyd-zh-cn curl ca-bundle ip-full momo luci-app-momo luci-i18n-momo-zh-cn sing-box"
 
           echo "Packaging firmware with USB 3.0, UAS, Momo and Sing-box..."
           make image PROFILE=cmcc_rax3000m \
