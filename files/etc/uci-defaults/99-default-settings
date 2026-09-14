@@ -34,4 +34,6 @@ uci -q commit momo || true
 
 ln -sf /etc/momo/profiles/mixin.json /etc/momo/mixin.json 2>/dev/null || true
 
+/etc/init.d/sing-box disable 2>/dev/null || true
+
 exit 0
