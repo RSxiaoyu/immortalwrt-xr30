@@ -4,7 +4,9 @@ on:
   workflow_dispatch:
   push:
     branches:
-      - main
+      - 25.12
+    paths-ignore:
+      - '**.md'
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -59,6 +61,7 @@ jobs:
         run: |
           cd "$IB_DIR"
 
+          find "$GITHUB_WORKSPACE/files" -type f \( -name "*.sh" -o -name "*.uc" \) -exec sed -i 's/\r$//' {} + 2>/dev/null || true
           find "$GITHUB_WORKSPACE/files" -type f -exec chmod +x {} + 2>/dev/null || true
 
           PACKAGES_LIST="kmod-dummy kmod-nft-socket kmod-nft-tproxy kmod-tun kmod-inet-diag kmod-netlink-diag kmod-tcp-bbr kmod-usb3 kmod-usb-storage kmod-usb-storage-uas kmod-fs-ext4 kmod-fs-vfat kmod-fs-exfat automount luci luci-i18n-base-zh-cn luci-i18n-firewall-zh-cn luci-i18n-package-manager-zh-cn luci-theme-argon luci-app-ttyd luci-i18n-ttyd-zh-cn curl ca-bundle ip-full momo luci-app-momo luci-i18n-momo-zh-cn sing-box"
@@ -100,7 +103,7 @@ jobs:
           sha256sum * > sha256sums
 
           # 内容寻址: tag 由上游 rev 决定,同一上游内容重复构建时原地更新既有 Release (不产生新条目)
-          UPREV=$(ls | grep -oP '(?<=snapshot-)r[0-9]+-[0-9a-f]+' | head -n 1)
+          UPREV=$(ls | grep -oP 'r[0-9]+-[0-9a-f]+' | head -n 1)
           if [ -z "$UPREV" ]; then echo "Error: upstream rev not found in artifact filename!"; exit 1; fi
           echo "release_tag=25.12-${UPREV}" >> "$GITHUB_ENV"
           echo "Upstream rev: ${UPREV} -> release_tag=25.12-${UPREV}"

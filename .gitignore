@@ -1,14 +1,13 @@
-# OpenWrt build directories
+# Build outputs
+release/
 bin/
 build_dir/
-dl/
-feeds/
 staging_dir/
-tmp/
-logs/
-.config.old
-.config.cmd
-release/
-openwrt/
-*.orig
-*.rej
+immortalwrt-imagebuilder-*
+ib.tar.zst
+
+# Runtime / temporary files
+*.tmp
+*.bak
+files/etc/board.d/02_network
+files/lib/upgrade/platform.sh

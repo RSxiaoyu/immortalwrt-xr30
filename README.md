@@ -12,7 +12,7 @@
 |---|---|---|
 | 系统 / 内核 / 软件包 | [ImmortalWrt 官方](https://github.com/immortalwrt/immortalwrt) | 用对应通道的 ImageBuilder 原样打包，零源码 fork |
 | 设备适配 | 上游内置 CMCC RAX3000M（NAND） | 官方 DTB 为基底 + [62 行增量 overlay](dts/mt7981b-cmcc-xr30-nand.dtso)，构建时 fdtoverlay 合成 |
-| 网络 / 升级脚本 | 上游 `02_network` / `platform.sh` | 构建时从上游实时拉取，仅注入 `cmcc,xr30*` 三处匹配项 |
+| 网络 / 升级脚本 | 上游 `02_network` / `platform.sh` | 构建时从上游实时拉取，仅注入 `cmcc,xr30*` 四处匹配项 (1 处网络 + 3 处升级) |
 | 透明代理 | [OpenWrt-momo](https://github.com/nikkinikki-org/OpenWrt-momo)（管理）+ [sing-box](https://github.com/SagerNet/sing-box)（内核） | 随固件打包，Dashboard 支持全节点自动测速 |
 | Bootloader | [bl-mt798x-xr30](https://github.com/RSxiaoyu/bl-mt798x-xr30)（上游 [Yuzhii0718/bl-mt798x-dhcpd](https://github.com/Yuzhii0718/bl-mt798x-dhcpd)） | 独立仓库构建 |
 
@@ -21,7 +21,7 @@
 | 分支 | 上游 | 内核 | 构建方式 |
 |---|---|---|---|
 | `snapshot`（默认） | master 主干（26.x） | Linux 6.18 | 每周一 04:00（UTC+8）自动 |
-| `main` | `openwrt-25.12` 稳定分支 | Linux 6.12 | 按需（push / 手动触发） |
+| `25.12` | `openwrt-25.12` 稳定分支 | Linux 6.12 | 按需（push / 手动触发） |
 
 Release tag 按上游版本号编址（如 `snapshot-r40943-1e53c0ae5a`）：同一上游内容的重复构建原地更新既有 Release，不产生重复条目。
 
