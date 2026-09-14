@@ -2,46 +2,38 @@
 
 [![Build](https://github.com/RSxiaoyu/immortalwrt-xr30/actions/workflows/build.yml/badge.svg)](https://github.com/RSxiaoyu/immortalwrt-xr30/actions/workflows/build.yml)
 
-**中国移动 CMCC XR30**（MT7981B / 512MB DDR4 / 128MB SPI-NAND）专属固件。
+**中国移动 CMCC XR30** 专属纯净固件。
 
-设计原则：**上游优先，不 fork、不整编** —— 用官方 ImageBuilder 直接打包固件，本仓库只维护 XR30 必需的设备适配，其余一切跟随上游。
+遵循 **Ponytail** 极简原则：官方 ImageBuilder 直出，零源码 fork、零整编开销，仅维护 62 行增量设备树，其余 100% 同步官方上游。
 
-## 上游
+## 架构
 
-| 组件 | 上游 | 本仓库的动作 |
+| 组件 | 上游 | 适配实现 |
 |---|---|---|
-| 系统 / 内核 / 软件包 | [ImmortalWrt 官方](https://github.com/immortalwrt/immortalwrt) | 用对应通道的 ImageBuilder 原样打包，零源码 fork |
-| 设备适配 | 上游内置 CMCC RAX3000M（NAND） | 官方 DTB 为基底 + [62 行增量 overlay](dts/mt7981b-cmcc-xr30-nand.dtso)，构建时 fdtoverlay 合成 |
-| 网络 / 升级脚本 | 上游 `02_network` / `platform.sh` | 构建时从上游实时拉取，仅注入 `cmcc,xr30*` 四处匹配项 (1 处网络 + 3 处升级) |
-| 透明代理 | [OpenWrt-momo](https://github.com/nikkinikki-org/OpenWrt-momo)（管理）+ [sing-box](https://github.com/SagerNet/sing-box)（内核） | 随固件打包，Dashboard 支持全节点自动测速 |
-| Bootloader | [bl-mt798x-xr30](https://github.com/RSxiaoyu/bl-mt798x-xr30)（上游 [Yuzhii0718/bl-mt798x-dhcpd](https://github.com/Yuzhii0718/bl-mt798x-dhcpd)） | 独立仓库构建 |
+| 系统 / 内核 | [ImmortalWrt 官方](https://github.com/immortalwrt/immortalwrt) | 官方 ImageBuilder 直出，享受官方预编译生态 |
+| 设备树 | 上游 RAX3000M (NAND) | 基底 DTB + [62 行增量 overlay](dts/mt7981b-cmcc-xr30-nand.dtso)，构建期 `fdtoverlay` 链式合成 |
+| 网络 / 升级 | 上游 `02_network` / `platform.sh` | 构建期实时拉取，仅注入 `cmcc,xr30*` 四处必要匹配 (1 处网络 + 3 处升级) |
+| 透明代理 | [OpenWrt-momo](https://github.com/nikkinikki-org/OpenWrt-momo) + [sing-box](https://github.com/SagerNet/sing-box) | 内置 GfS 风格 `mixin.json` 规则注入与旧版订阅语法自动迁移，Zashboard 仪表盘 |
+| 引导链 | [bl-mt798x-xr30](https://github.com/RSxiaoyu/bl-mt798x-xr30) | ubootmod 架构，移除 NMBM，原生 MTD/UBI 直通 (卷空间 122.5MB) |
 
-## 构建通道
+## 通道
 
-| 分支 | 上游 | 内核 | 构建方式 |
-|---|---|---|---|
-| `snapshot`（默认） | master 主干（26.x） | Linux 6.18 | 每周一 04:00（UTC+8）自动 |
-| `25.12` | `openwrt-25.12` 稳定分支 | Linux 6.12 | 按需（push / 手动触发） |
+| 分支 | 状态 | 上游基础 | 内核 | 构建策略 |
+|---|---|---|---|---|
+| `snapshot` (默认) | 前沿主线 | master 主干 (26.x) | Linux 6.18 | 每周一 04:00 (CST) 自动巡检 |
+| `25.12` | 稳定正式 | openwrt-25.12 | Linux 6.12 | 按需 / 手动触发 |
 
-Release tag 按上游版本号编址（如 `snapshot-r40943-1e53c0ae5a`）：同一上游内容的重复构建原地更新既有 Release，不产生重复条目。
+Release tag 采用内容寻址（`25.12-r<rev>` / `snapshot-r<rev>`），上游无新内容时不重复发版。
 
-## 固件内容
+## 特性与硬件
 
-- LuCI（中文）+ Argon 主题 + TTYD 终端
-- Momo + sing-box：订阅即节点源，Dashboard 全节点自动测速
-- USB 3.0 自动挂载（UAS / ext4 / vfat / exFAT）
-- 默认启用：MTK PPE 硬件流量分载、Packet Steering、TCP BBR
-
-## 硬件规格
-
-| 项 | 规格 |
-|---|---|
-| SoC | MediaTek MT7981B（双核 Cortex-A53 @ 1.3GHz） |
-| 内存 / 闪存 | 512MB DDR4 / 128MB SPI-NAND |
-| 网口 / USB | 1× GE WAN（eth1）+ 3× GE LAN（MT7531AE）/ USB 3.0 |
-| 无线 | 2.4G 574M + 5G 2402M @ 160MHz，mt76 开源驱动 |
+- **硬件**: MediaTek MT7981B (双核 A53 @ 1.3GHz) / 512MB DDR4 / 128MB SPI-NAND
+- **网口**: 1× GE WAN (eth1) + 3× GE LAN (MT7531AE 直通) / 1× USB 3.0 (UAS + ext4/vfat/exFAT 自动挂载)
+- **无线**: 2.4G 574M + 5G 2402M @ 160MHz (mt76 开源驱动)
+- **加速**: MTK PPE 硬件流控 (HNAT) + Packet Steering 多核分发 + TCP BBR
+- **界面**: LuCI (简体中文) + Argon 主题 + TTYD 网页终端
 
 ## 刷写
 
-1. [bl-mt798x-xr30](https://github.com/RSxiaoyu/bl-mt798x-xr30) U-Boot Web 恢复控制台（`192.168.1.1`）直接上传 `*sysupgrade.itb`；或在运行系统中 `sysupgrade -n *.itb`
-2. 管理：`192.168.1.1` ｜ `root` ｜ 默认无密码（请自行修改）
+1. 在 [bl-mt798x-xr30](https://github.com/RSxiaoyu/bl-mt798x-xr30) Web 恢复控制台 (`192.168.1.1`) 上传 `*sysupgrade.itb` 刷入；或在运行系统中执行 `sysupgrade -n *.itb`
+2. 后台：`192.168.1.1` ｜ 用户名：`root` ｜ 默认无密码

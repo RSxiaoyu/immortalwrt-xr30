@@ -121,10 +121,10 @@ jobs:
           tag_name: ${{ env.release_tag }}
           name: "ImmortalWrt 26.x Snapshot for CMCC XR30 (${{ env.release_tag }} · ${{ steps.vars.outputs.build_date }})"
           body: |
-            - **设备**: 中国移动 CMCC XR30 (MT7981B / 512MB DDR4 / 128MB SPI-NAND)
-            - **上游**: ImmortalWrt master 主干 (26.x, Linux 6.18)，官方 ImageBuilder 打包，本仓库仅做设备适配
-            - **适配**: RAX3000M NAND DTB + 增量 overlay (fdtoverlay)；board 脚本实时拉取上游并注入 cmcc,xr30*
-            - **内置**: Momo + sing-box（Dashboard 全节点自动测速） · LuCI + Argon + TTYD · USB 3.0 自动挂载 · PPE 硬件分载 / BBR
-            - **刷写**: U-Boot Web (192.168.1.1) 上传 itb，或 `sysupgrade -n *.itb`
-            - **回退**: [25.12 稳定通道](https://github.com/RSxiaoyu/immortalwrt-xr30/releases?q=25.12) 可直接互刷
+            - **硬件**: CMCC XR30 (MT7981B / 512M / 128M / USB 3.0)
+            - **上游**: ImmortalWrt snapshot 主干 (Linux 6.18, 官方 ImageBuilder 打包, 零源码 fork)
+            - **适配**: RAX3000M NAND 基底 + XR30 增量 overlay (fdtoverlay)
+            - **特性**: Momo + sing-box (GfS 风格 mixin.json 分流) · TTYD · Argon · PPE 硬件流控 · BBR
+            - **刷写**: U-Boot Web (192.168.1.1) 或系统内 sysupgrade -n *.itb
+            - **稳定版**: [25.12 稳定通道](https://github.com/RSxiaoyu/immortalwrt-xr30/releases?q=25.12) (Linux 6.12)
           files: release/*
