@@ -24,16 +24,32 @@ uci -q set wireless.radio1.band='5g'
 uci -q set wireless.radio1.htmode='HE160'
 uci -q commit wireless || true
 
-# 5. 预设 Momo 首次开机默认值 (提供合理初值，用户可在 WebUI 任意修改覆盖)
+# 5. 预设 Momo 极简优雅默认值 (用户可在 WebUI 界面完全自由覆盖)
 uci -q set momo.proxy.lan_inbound_interface='lan'
 uci -q set momo.proxy.tcp_mode='tproxy'
 uci -q set momo.proxy.udp_mode='tproxy'
+uci -q set momo.proxy.ipv4_proxy='1'
+uci -q set momo.proxy.ipv6_proxy='0'
+uci -q set momo.proxy.ipv4_dns_hijack='1'
+uci -q set momo.proxy.ipv6_dns_hijack='0'
+uci -q set momo.proxy.fake_ip_ping_hijack='1'
 uci -q set momo.mixin.external_control_api_listen='0.0.0.0:9090'
 uci -q set momo.mixin.dns_strategy='prefer_ipv4'
 uci -q commit momo || true
 
-ln -sf /etc/momo/profiles/mixin.json /etc/momo/mixin.json 2>/dev/null || true
+# 6. 放行 Sunshine 游戏串流入站 (IPv6 专属直连端口)
+uci -q delete firewall.sunshine_ipv6
+uci set firewall.sunshine_ipv6=rule
+uci set firewall.sunshine_ipv6.name='Allow-Sunshine-IPv6'
+uci set firewall.sunshine_ipv6.src='wan'
+uci set firewall.sunshine_ipv6.dest='lan'
+uci set firewall.sunshine_ipv6.proto='tcp udp'
+uci set firewall.sunshine_ipv6.dest_port='47984 47989 47990 47998-48000 48002 48010'
+uci set firewall.sunshine_ipv6.family='ipv6'
+uci set firewall.sunshine_ipv6.target='ACCEPT'
+uci -q commit firewall || true
 
+ln -sf /etc/momo/profiles/mixin.json /etc/momo/mixin.json 2>/dev/null || true
 /etc/init.d/sing-box disable 2>/dev/null || true
 
 exit 0
