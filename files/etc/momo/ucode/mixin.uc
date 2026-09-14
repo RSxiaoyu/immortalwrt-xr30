@@ -170,7 +170,7 @@ if (!has_dns_rule) {
 	});
 }
 
-// 5. GUI.for.SingBox 风格智能 Mixin 引擎
+// 5. GUI.for.SingBox 风格智能 Mixin 引擎 (支持 include / exclude 正则与 DIRECT 安全降级)
 function load_mixin_config() {
 	const paths = ['/etc/momo/profiles/mixin.json', '/etc/momo/mixin.json'];
 	for (let p in paths) {
@@ -197,13 +197,13 @@ if (mixin) {
 		}
 	}
 
-	// B. 自定义出站 outbounds 合并 (原生对齐 GfS 的 include / exclude 正则动态过滤)
+	// B. 自定义出站 outbounds 合并 (支持 include/exclude 正则与空集 DIRECT 降级)
 	if (mixin.outbounds && type(mixin.outbounds) == 'array') {
 		if (!profile.outbounds) profile.outbounds = [];
 
 		let all_proxy_nodes = [];
 		for (let p_ob in profile.outbounds) {
-			if (p_ob.type != 'selector' && p_ob.type != 'urltest' && p_ob.type != 'direct' && p_ob.type != 'block') {
+			if (p_ob.type != 'selector' && p_ob.type != 'urltest' && p_ob.type != 'direct' && p_ob.type != 'block' && p_ob.type != 'dns') {
 				push(all_proxy_nodes, p_ob.tag);
 			}
 		}
@@ -221,7 +221,8 @@ if (mixin) {
 						if (exc_re && match(tag, exc_re)) continue;
 						push(filtered_nodes, tag);
 					}
-					ob.outbounds = filtered_nodes;
+					// 兜底优化：匹配落空时只填入 DIRECT，既防止 Sing-box 崩溃，又坚决不乱走不合要求的代理节点
+					ob.outbounds = length(filtered_nodes) > 0 ? filtered_nodes : ['DIRECT'];
 					delete ob.include;
 					delete ob.exclude;
 				}
@@ -264,7 +265,11 @@ if (mixin) {
 			for (let s in mixin.dns.servers) {
 				let found = false;
 				for (let ex in profile.dns.servers) {
-					if (ex.tag == s.tag) { found = true; break; }
+					if (ex.tag == s.tag) {
+						for (let k in keys(s)) ex[k] = s[k];
+						found = true;
+						break;
+					}
 				}
 				if (!found) push(profile.dns.servers, s);
 			}
