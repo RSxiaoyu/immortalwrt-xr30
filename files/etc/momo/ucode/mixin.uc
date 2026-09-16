@@ -2,175 +2,29 @@
 
 'use strict';
 
-import { readfile } from 'fs';
+import { readfile, writefile } from 'fs';
 import { cursor } from 'uci';
 import { uci_bool, uci_int, uci_array, merge, trim_all, load_profile, save_profile } from '/etc/momo/ucode/include.uc';
 
 const uci = cursor();
 
-const config = {};
+// 1. 读取原生订阅或旧配置
+const raw_profile = load_profile();
 
-config['log'] = {};
-config['log']['disabled'] = uci_bool(uci.get('momo', 'mixin', 'log_disabled'));
-config['log']['level'] = uci.get('momo', 'mixin', 'log_level');
-config['log']['timestamp'] = uci_bool(uci.get('momo', 'mixin', 'log_timestamp'));
-config['log']['output'] = uci.get('momo', 'mixin', 'log_output');
+// 2. 纯净提取机场订阅中唯一的真实资产：所有代理节点 (Proxy Nodes)
+let proxy_nodes = [];
+let proxy_tags = [];
 
-config['dns'] = {};
-config['dns']['strategy'] = uci.get('momo', 'mixin', 'dns_strategy');
-config['dns']['disable_cache'] = uci_bool(uci.get('momo', 'mixin', 'dns_disable_cache'));
-config['dns']['disable_expire'] = uci_bool(uci.get('momo', 'mixin', 'dns_disable_expire'));
-config['dns']['independent_cache'] = uci_bool(uci.get('momo', 'mixin', 'dns_independent_cache'));
-config['dns']['cache_capacity'] = uci_int(uci.get('momo', 'mixin', 'dns_cache_capacity'));
-config['dns']['reverse_mapping'] = uci_bool(uci.get('momo', 'mixin', 'dns_reverse_mapping'));
-
-config['ntp'] = {};
-config['ntp']['enabled'] = uci_bool(uci.get('momo', 'mixin', 'ntp_enabled'));
-config['ntp']['server'] = uci.get('momo', 'mixin', 'ntp_server');
-config['ntp']['server_port'] = uci_int(uci.get('momo', 'mixin', 'ntp_server_port'));
-config['ntp']['interval'] = uci.get('momo', 'mixin', 'ntp_interval');
-
-config['experimental'] = {};
-
-config['experimental']['cache_file'] = {};
-config['experimental']['cache_file']['enabled'] = uci_bool(uci.get('momo', 'mixin', 'cache_enabled'));
-config['experimental']['cache_file']['path'] = uci.get('momo', 'mixin', 'cache_path');
-config['experimental']['cache_file']['store_fakeip'] = uci_bool(uci.get('momo', 'mixin', 'cache_store_fakeip'));
-config['experimental']['cache_file']['store_rdrc'] = uci_bool(uci.get('momo', 'mixin', 'cache_store_rdrc'));
-
-config['experimental']['clash_api'] = {};
-config['experimental']['clash_api']['external_ui'] = uci.get('momo', 'mixin', 'external_control_ui_path');
-config['experimental']['clash_api']['external_ui_download_url'] = uci.get('momo', 'mixin', 'external_control_ui_download_url');
-config['experimental']['clash_api']['external_controller'] = uci.get('momo', 'mixin', 'external_control_api_listen');
-config['experimental']['clash_api']['secret'] = uci.get('momo', 'mixin', 'external_control_api_secret');
-
-let profile = load_profile();
-
-// 1. 基础 UCI 配置合并
-profile = merge(profile, trim_all(config));
-
-// 2. 自动兼容/迁移旧版订阅中的 legacy DNS 格式 (sing-box 1.14.0 规范)
-let local_dns_tag = 'local';
-if (profile.dns && profile.dns.servers) {
-	for (let s in profile.dns.servers) {
-		if (s.address) {
-			if (s.address == 'local') {
-				s.type = 'local';
-				local_dns_tag = s.tag;
-				delete s.address;
-			} else if (s.address == 'fakeip') {
-				s.type = 'fakeip';
-				delete s.address;
-				if (!s.inet4_range) s.inet4_range = '198.18.0.0/15';
-			} else if (index(s.address, 'https://') == 0) {
-				s.type = 'https';
-				let rest = substr(s.address, 8);
-				let slash = index(rest, '/');
-				if (slash >= 0) {
-					s.path = substr(rest, slash);
-					s.server = substr(rest, 0, slash);
-				} else {
-					s.server = rest;
-				}
-				delete s.address;
-				if (s.address_resolver) {
-					s.domain_resolver = s.address_resolver;
-					delete s.address_resolver;
-				} else if (!s.domain_resolver) {
-					s.domain_resolver = local_dns_tag;
-				}
-			} else if (index(s.address, 'tls://') == 0) {
-				s.type = 'tls';
-				s.server = substr(s.address, 6);
-				delete s.address;
-				if (s.address_resolver) {
-					s.domain_resolver = s.address_resolver;
-					delete s.address_resolver;
-				} else if (!s.domain_resolver) {
-					s.domain_resolver = local_dns_tag;
-				}
-			} else {
-				s.type = 'udp';
-				s.server = s.address;
-				delete s.address;
-			}
+for (let ob in raw_profile.outbounds) {
+	if (ob.type != 'selector' && ob.type != 'urltest' && ob.type != 'direct' && ob.type != 'block' && ob.type != 'dns') {
+		if (index(ob.tag, '流量') < 0 && index(ob.tag, '到期') < 0) {
+			push(proxy_nodes, ob);
+			push(proxy_tags, ob.tag);
 		}
 	}
 }
-if (profile.dns && profile.dns.fakeip) {
-	delete profile.dns.fakeip;
-}
 
-// 3. 自动注入基础透明代理入站 (解决机场订阅缺少 router-inbounds)
-if (!profile.inbounds) {
-	profile.inbounds = [];
-}
-
-let clean_inbounds = [];
-for (let ib in profile.inbounds) {
-	if (ib.tag != 'tun-in' && ib.tag != 'dns-in' && ib.tag != 'redirect-in' && ib.tag != 'tproxy-in') {
-		push(clean_inbounds, ib);
-	}
-}
-profile.inbounds = clean_inbounds;
-
-push(profile.inbounds, {
-	"type": "direct",
-	"tag": "dns-in",
-	"listen": "::",
-	"listen_port": 6450
-});
-
-push(profile.inbounds, {
-	"type": "redirect",
-	"tag": "redirect-in",
-	"listen": "::",
-	"listen_port": 7892
-});
-
-push(profile.inbounds, {
-	"type": "tproxy",
-	"tag": "tproxy-in",
-	"listen": "::",
-	"listen_port": 7895
-});
-
-push(profile.inbounds, {
-	"type": "tun",
-	"tag": "tun-in",
-	"interface_name": "momo-tun",
-	"address": ["172.19.0.1/30"],
-	"auto_route": false,
-	"strict_route": false,
-	"stack": "system"
-});
-
-// 4. 路由基础框架
-if (!profile.route) {
-	profile.route = {};
-}
-if (!profile.route.default_domain_resolver) {
-	profile.route.default_domain_resolver = local_dns_tag;
-}
-if (!profile.route.rules) {
-	profile.route.rules = [];
-}
-
-let has_dns_rule = false;
-for (let r in profile.route.rules) {
-	if (r.action == 'hijack-dns') {
-		has_dns_rule = true;
-		break;
-	}
-}
-if (!has_dns_rule) {
-	unshift(profile.route.rules, {
-		"inbound": ["dns-in"],
-		"action": "hijack-dns"
-	});
-}
-
-// 5. GUI.for.SingBox 风格智能 Mixin 引擎 (支持 include / exclude 正则与 DIRECT 安全降级)
+// 3. 读取用户自定义 mixin.json (支持在 LuCI WebUI 在线编辑自由修改)
 function load_mixin_config() {
 	const paths = ['/etc/momo/profiles/mixin.json', '/etc/momo/mixin.json'];
 	for (let p in paths) {
@@ -182,112 +36,197 @@ function load_mixin_config() {
 	}
 	return null;
 }
+const mixin = load_mixin_config() || {};
 
-const mixin = load_mixin_config();
-if (mixin) {
-	// A. 自定义规则集 rule_set 合并 (按 tag 去重追加)
-	if (mixin.rule_set && type(mixin.rule_set) == 'array') {
-		if (!profile.route.rule_set) profile.route.rule_set = [];
-		for (let rs in mixin.rule_set) {
-			let found = false;
-			for (let ex in profile.route.rule_set) {
-				if (ex.tag == rs.tag) { found = true; break; }
+// 4. 组装自定义出站策略组 (支持 GfS 风格 include / exclude 正则筛选)
+let custom_outbounds = [];
+if (mixin.outbounds && type(mixin.outbounds) == 'array') {
+	for (let ob in mixin.outbounds) {
+		if (ob.type == 'urltest' || ob.type == 'selector') {
+			let inc_re = ob.include ? regexp(ob.include, 'i') : null;
+			let exc_re = ob.exclude ? regexp(ob.exclude, 'i') : null;
+
+			let source_tags = (ob.outbounds && length(ob.outbounds) > 0) ? ob.outbounds : proxy_tags;
+			let filtered = [];
+			for (let tag in source_tags) {
+				if (inc_re && !match(tag, inc_re)) continue;
+				if (exc_re && match(tag, exc_re)) continue;
+				push(filtered, tag);
 			}
-			if (!found) push(profile.route.rule_set, rs);
+			ob.outbounds = length(filtered) > 0 ? filtered : ['DIRECT'];
+			delete ob.include;
+			delete ob.exclude;
 		}
-	}
-
-	// B. 自定义出站 outbounds 合并 (支持 include/exclude 正则与空集 DIRECT 降级)
-	if (mixin.outbounds && type(mixin.outbounds) == 'array') {
-		if (!profile.outbounds) profile.outbounds = [];
-
-		let all_proxy_nodes = [];
-		for (let p_ob in profile.outbounds) {
-			if (p_ob.type != 'selector' && p_ob.type != 'urltest' && p_ob.type != 'direct' && p_ob.type != 'block' && p_ob.type != 'dns') {
-				push(all_proxy_nodes, p_ob.tag);
-			}
-		}
-
-		for (let ob in mixin.outbounds) {
-			if (ob.type == 'urltest' || ob.type == 'selector') {
-				if (ob.include || ob.exclude || !ob.outbounds || length(ob.outbounds) == 0) {
-					let inc_re = ob.include ? regexp(ob.include, 'i') : null;
-					let exc_re = ob.exclude ? regexp(ob.exclude, 'i') : null;
-
-					let source_nodes = (ob.outbounds && length(ob.outbounds) > 0) ? ob.outbounds : all_proxy_nodes;
-					let filtered_nodes = [];
-					for (let tag in source_nodes) {
-						if (inc_re && !match(tag, inc_re)) continue;
-						if (exc_re && match(tag, exc_re)) continue;
-						push(filtered_nodes, tag);
-					}
-					// 兜底优化：匹配落空时只填入 DIRECT，既防止 Sing-box 崩溃，又坚决不乱走不合要求的代理节点
-					ob.outbounds = length(filtered_nodes) > 0 ? filtered_nodes : ['DIRECT'];
-					delete ob.include;
-					delete ob.exclude;
-				}
-			}
-
-			let found = false;
-			for (let ex in profile.outbounds) {
-				if (ex.tag == ob.tag) { found = true; break; }
-			}
-			if (!found) push(profile.outbounds, ob);
-		}
-	}
-
-	// C. 前置分流规则 prepend_rules (插入到 hijack-dns 之后)
-	if (mixin.prepend_rules && type(mixin.prepend_rules) == 'array') {
-		let insert_idx = 0;
-		for (let i = 0; i < length(profile.route.rules); i++) {
-			if (profile.route.rules[i].action == 'hijack-dns') {
-				insert_idx = i + 1;
-				break;
-			}
-		}
-		for (let i = length(mixin.prepend_rules) - 1; i >= 0; i--) {
-			splice(profile.route.rules, insert_idx, 0, mixin.prepend_rules[i]);
-		}
-	}
-
-	// D. 后置分流规则 append_rules (追加到末尾作为兜底规则)
-	if (mixin.append_rules && type(mixin.append_rules) == 'array') {
-		for (let r in mixin.append_rules) {
-			push(profile.route.rules, r);
-		}
-	}
-
-	// E. 自定义 DNS 合并
-	if (mixin.dns) {
-		if (!profile.dns) profile.dns = {};
-		if (mixin.dns.servers && type(mixin.dns.servers) == 'array') {
-			if (!profile.dns.servers) profile.dns.servers = [];
-			for (let s in mixin.dns.servers) {
-				let found = false;
-				for (let ex in profile.dns.servers) {
-					if (ex.tag == s.tag) {
-						for (let k in keys(s)) ex[k] = s[k];
-						found = true;
-						break;
-					}
-				}
-				if (!found) push(profile.dns.servers, s);
-			}
-		}
-		if (mixin.dns.rules && type(mixin.dns.rules) == 'array') {
-			if (!profile.dns.rules) profile.dns.rules = [];
-			for (let i = length(mixin.dns.rules) - 1; i >= 0; i--) {
-				unshift(profile.dns.rules, mixin.dns.rules[i]);
-			}
-		}
-	}
-
-	// F. 其他未特殊处理的顶层字段深度合并
-	for (let k in keys(mixin)) {
-		if (k != 'prepend_rules' && k != 'append_rules' && k != 'rule_set' && k != 'outbounds' && k != 'dns' && k != '_comment') {
-			profile[k] = mixin[k];
-		}
+		push(custom_outbounds, ob);
 	}
 }
 
-save_profile(profile);
+// 5. 组装规则集 (默认包含广告拦截与全量大陆域名，支持 mixin 增量合并)
+let rule_sets = [
+	{
+		"tag": "geosite-ads",
+		"type": "remote",
+		"format": "binary",
+		"url": "https://testingcf.jsdelivr.net/gh/MetaCubeX/meta-rules-dat@sing/geo/geosite/category-ads-all.srs",
+		"download_detour": "DIRECT"
+	},
+	{
+		"tag": "geosite-cn",
+		"type": "remote",
+		"format": "binary",
+		"url": "https://testingcf.jsdelivr.net/gh/MetaCubeX/meta-rules-dat@sing/geo/geosite/cn.srs",
+		"download_detour": "DIRECT"
+	}
+];
+if (mixin.rule_set && type(mixin.rule_set) == 'array') {
+	for (let rs in mixin.rule_set) {
+		let found = false;
+		for (let ex in rule_sets) {
+			if (ex.tag == rs.tag) { found = true; break; }
+		}
+		if (!found) push(rule_sets, rs);
+	}
+}
+
+// 6. 组装分流规则链：嗅探 -> DNS劫持 -> 私有IP -> BT下载 -> 广告拦截 -> 用户前置规则 -> 大陆直连 -> 用户后置规则
+let rules = [
+	{ "action": "sniff" },
+	{ "protocol": "dns", "action": "hijack-dns" },
+	{ "ip_is_private": true, "outbound": "DIRECT" },
+	{ "protocol": ["bittorrent"], "outbound": "DIRECT" },
+	{ "rule_set": "geosite-ads", "action": "reject" }
+];
+
+if (mixin.prepend_rules && type(mixin.prepend_rules) == 'array') {
+	for (let r in mixin.prepend_rules) {
+		push(rules, r);
+	}
+}
+
+push(rules, { "rule_set": "geosite-cn", "outbound": "DIRECT" });
+
+if (mixin.append_rules && type(mixin.append_rules) == 'array') {
+	for (let r in mixin.append_rules) {
+		push(rules, r);
+	}
+}
+
+// 7. 读取 WebUI 界面设定的配置
+const api_listen = uci.get('momo', 'mixin', 'external_control_api_listen') || '0.0.0.0:9090';
+const api_secret = uci.get('momo', 'mixin', 'external_control_api_secret') || '';
+const api_ui = uci.get('momo', 'mixin', 'external_control_ui_path') || 'ui';
+
+// 8. 合成 100% 优雅纯净的 GUI.for.SingBox 范式配置
+let clean_profile = {
+	"log": {
+		"level": uci.get('momo', 'mixin', 'log_level') || 'info',
+		"timestamp": true
+	},
+	"dns": {
+		"servers": [
+			{
+				"tag": "local",
+				"type": "local"
+			},
+			{
+				"tag": "fakeip",
+				"type": "fakeip",
+				"inet4_range": "198.18.0.0/15"
+			}
+		],
+		"rules": [
+			{
+				"rule_set": "geosite-cn",
+				"server": "local"
+			},
+			{
+				"query_type": ["A", "AAAA"],
+				"server": "fakeip"
+			}
+		],
+		"final": "local",
+		"strategy": "prefer_ipv4",
+		"reverse_mapping": true
+	},
+	"inbounds": [
+		{
+			"type": "direct",
+			"tag": "dns-in",
+			"listen": "::",
+			"listen_port": 6450
+		},
+		{
+			"type": "redirect",
+			"tag": "redirect-in",
+			"listen": "::",
+			"listen_port": 7892
+		},
+		{
+			"type": "tproxy",
+			"tag": "tproxy-in",
+			"listen": "::",
+			"listen_port": 7895
+		},
+		{
+			"type": "tun",
+			"tag": "tun-in",
+			"interface_name": "momo-tun",
+			"address": ["172.19.0.1/30"],
+			"auto_route": false,
+			"strict_route": false,
+			"stack": "system"
+		},
+		{
+			"type": "mixed",
+			"tag": "mixed-in",
+			"listen": "127.0.0.1",
+			"listen_port": 7891
+		}
+	],
+	"outbounds": [
+		{
+			"type": "direct",
+			"tag": "DIRECT"
+		},
+		{
+			"type": "block",
+			"tag": "REJECT"
+		},
+		{
+			"type": "selector",
+			"tag": "节点选择",
+			"outbounds": ["自动选择", ...proxy_tags, "DIRECT"]
+		},
+		{
+			"type": "urltest",
+			"tag": "自动选择",
+			"outbounds": proxy_tags,
+			"url": "https://www.gstatic.com/generate_204",
+			"interval": "5m",
+			"tolerance": 50
+		},
+		...custom_outbounds,
+		...proxy_nodes
+	],
+	"route": {
+		"rules": rules,
+		"rule_set": rule_sets,
+		"final": "节点选择",
+		"default_domain_resolver": "local"
+	},
+	"experimental": {
+		"cache_file": {
+			"enabled": true,
+			"path": "/etc/momo/run/cache.db",
+			"store_fakeip": true,
+			"store_rdrc": true
+		},
+		"clash_api": {
+			"external_controller": api_listen,
+			"external_ui": api_ui,
+			"secret": api_secret
+		}
+	}
+};
+
+save_profile(clean_profile);
