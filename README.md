@@ -13,7 +13,7 @@
 | 系统 / 内核 | [ImmortalWrt 官方](https://github.com/immortalwrt/immortalwrt) | 官方 ImageBuilder 直出，享受官方预编译生态 |
 | 设备树 | 上游 RAX3000M (NAND) | 基底 DTB + [62 行增量 overlay](dts/mt7981b-cmcc-xr30-nand.dtso)，构建期 `fdtoverlay` 链式合成 |
 | 网络 / 升级 | 上游 `02_network` / `platform.sh` | 构建期实时拉取，仅注入 `cmcc,xr30*` 四处必要匹配 (1 处网络 + 3 处升级) |
-| 透明代理 | [OpenWrt-momo](https://github.com/nikkinikki-org/OpenWrt-momo) + [sing-box](https://github.com/SagerNet/sing-box) | 内置 GfS 风格 `mixin.json` 规则注入与旧版订阅语法自动迁移，Zashboard 仪表盘 |
+| 透明代理 | [OpenWrt-momo](https://github.com/nikkinikki-org/OpenWrt-momo) + [sing-box](https://github.com/SagerNet/sing-box) | 内置 GfS 风格 `mixin.json` 声明式分流、多订阅自动聚合与 Zashboard 仪表盘 |
 | 引导链 | [bl-mt798x-xr30](https://github.com/RSxiaoyu/bl-mt798x-xr30) | ubootmod 架构，移除 NMBM，原生 MTD/UBI 直通 (卷空间 122.5MB) |
 
 ## 通道
