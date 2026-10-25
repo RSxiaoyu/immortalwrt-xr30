@@ -8,8 +8,7 @@
       {
         "tag": "doh-ali",
         "type": "https",
-        "server": "223.5.5.5",
-        "domain_resolver": "local"
+        "server": "223.5.5.5"
       },
       {
         "tag": "fake-ip-dns-server",
@@ -38,8 +37,7 @@
     ],
     "final": "local",
     "strategy": "prefer_ipv4",
-    "optimistic": true,
-    "reverse_mapping": true
+    "optimistic": true
   },
   "inbounds": [
     {
@@ -64,10 +62,7 @@
       "type": "tun",
       "tag": "tun-in",
       "interface_name": "momo-tun",
-      "address": ["172.19.0.1/30"],
-      "auto_route": false,
-      "strict_route": false,
-      "stack": "system"
+      "address": ["172.19.0.1/30"]
     },
     {
       "type": "mixed",
@@ -82,15 +77,11 @@
       "type": "direct"
     },
     {
-      "tag": "REJECT",
-      "type": "block"
-    },
-    {
       "tag": "节点选择",
       "type": "selector",
       "outbounds": [
         "自动选择",
-        "Google自动",
+        "Gemini自动",
         "手动选择",
         "美国节点",
         "日本节点",
@@ -99,10 +90,10 @@
       ]
     },
     {
-      "tag": "Google",
+      "tag": "Gemini",
       "type": "selector",
       "outbounds": [
-        "Google自动",
+        "Gemini自动",
         "手动选择",
         "节点选择",
         "DIRECT"
@@ -122,7 +113,7 @@
       "tolerance": 50
     },
     {
-      "tag": "Google自动",
+      "tag": "Gemini自动",
       "type": "urltest",
       "include": "美|US|United States",
       "exclude": "流量|到期|剩余|官网|通知|网站|重置|套餐",
@@ -183,14 +174,6 @@
         "url": "https://fastly.jsdelivr.net/gh/MetaCubeX/meta-rules-dat@sing/geo/geosite/google-gemini.srs",
         "download_detour": "DIRECT",
         "update_interval": "24h"
-      },
-      {
-        "tag": "geosite-google",
-        "type": "remote",
-        "format": "binary",
-        "url": "https://fastly.jsdelivr.net/gh/MetaCubeX/meta-rules-dat@sing/geo/geosite/google.srs",
-        "download_detour": "DIRECT",
-        "update_interval": "24h"
       }
     ],
     "rules": [
@@ -210,10 +193,6 @@
         "outbound": "DIRECT"
       },
       {
-        "port": [53317],
-        "outbound": "DIRECT"
-      },
-      {
         "protocol": "quic",
         "port": [443],
         "action": "reject"
@@ -224,7 +203,7 @@
       },
       {
         "rule_set": "geosite-gemini",
-        "outbound": "Google"
+        "outbound": "Gemini"
       },
       {
         "rule_set": "geosite-cn",
@@ -235,6 +214,11 @@
     "default_domain_resolver": "local"
   },
   "experimental": {
+    "cache_file": {
+      "enabled": true,
+      "store_fakeip": true,
+      "store_dns": true
+    },
     "clash_api": {
       "external_controller": "0.0.0.0:9090"
     }
