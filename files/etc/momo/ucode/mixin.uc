@@ -54,14 +54,15 @@ if (uci.get('momo', 'config', 'profile') == 'file:mixin.json') {
 	const str = readfile('/etc/momo/profiles/mixin.json');
 	const mixin = (str ? json(str) : null) || {};
 
-	// 节点池：mixin.json 声明 0..n 个订阅名；空名单/解析失败 = 不聚合
+	// 节点池：缺省聚合全部订阅；显式数组 = 精确名单（[] = 不聚合，纯自建）
+	const has_pool = exists(mixin, 'subscriptions');
 	const pool = mixin.subscriptions || [];
 	delete mixin.subscriptions;
 	delete mixin._comment;
 	const skip = { selector: 1, urltest: 1, direct: 1, block: 1, dns: 1 };
 	const nodes = [], tags = [];
 	uci.foreach('momo', 'subscription', (s) => {
-		if (index(pool, s.name || s['.name']) < 0) return;
+		if (has_pool && index(pool, s.name || s['.name']) < 0) return;
 		const raw = json(readfile(`/etc/momo/subscriptions/${s['.name']}.json`));
 		const name = s.name || s['.name'];
 		for (let ob in (raw?.outbounds || []))
