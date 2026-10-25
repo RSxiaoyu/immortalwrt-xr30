@@ -1,4 +1,4 @@
-name: Build ImmortalWrt via ImageBuilder for CMCC XR30
+name: Build
 
 on:
   workflow_dispatch:
@@ -23,7 +23,7 @@ permissions:
 jobs:
   build:
     name: Build via ImageBuilder
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     timeout-minutes: 15
 
     steps:
@@ -119,12 +119,5 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           tag_name: ${{ env.release_tag }}
-          name: "ImmortalWrt 26.x Snapshot for CMCC XR30 (${{ env.release_tag }} · ${{ steps.vars.outputs.build_date }})"
-          body: |
-            - **硬件**: CMCC XR30 (MT7981B / 512M / 128M / USB 3.0)
-            - **上游**: ImmortalWrt snapshot 主干 (Linux 6.18, 官方 ImageBuilder 打包, 零源码 fork)
-            - **适配**: RAX3000M NAND 基底 + XR30 增量 overlay (fdtoverlay)
-            - **特性**: Momo + sing-box (GfS 风格 mixin.json 分流) · TTYD · Argon · PPE 硬件流控 · BBR
-            - **刷写**: U-Boot Web (192.168.1.1) 或系统内 sysupgrade -n *.itb
-            - **稳定版**: [25.12 稳定通道](https://github.com/RSxiaoyu/immortalwrt-xr30/releases?q=25.12) (Linux 6.12)
+          name: "${{ env.release_tag }}"
           files: release/*
