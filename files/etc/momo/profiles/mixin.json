@@ -1,5 +1,4 @@
 {
-  "subscriptions": ["赔钱机场", "CFworkers"],
   "dns": {
     "servers": [
       {
@@ -19,14 +18,6 @@
       }
     ],
     "rules": [
-      {
-        "domain_suffix": [
-          "rsxiaoyu.eu.org",
-          "3cfood.com",
-          "kingfeer.com"
-        ],
-        "server": "local"
-      },
       {
         "domain": [
           "cloudflare-ech.com"
@@ -133,7 +124,7 @@
     {
       "tag": "Google自动",
       "type": "urltest",
-      "include": "\\[CFworkers\\]",
+      "include": "美|US|United States",
       "exclude": "流量|到期|剩余|官网|通知|网站|重置|套餐",
       "url": "https://alkalimakersuite-pa.clients6.google.com/generate_204",
       "interval": "5m",
@@ -173,7 +164,7 @@
         "tag": "geosite-ads",
         "type": "remote",
         "format": "binary",
-        "url": "https://testingcf.jsdelivr.net/gh/MetaCubeX/meta-rules-dat@sing/geo/geosite/category-ads-all.srs",
+        "url": "https://fastly.jsdelivr.net/gh/MetaCubeX/meta-rules-dat@sing/geo/geosite/category-ads-all.srs",
         "download_detour": "DIRECT",
         "update_interval": "24h"
       },
@@ -181,7 +172,7 @@
         "tag": "geosite-cn",
         "type": "remote",
         "format": "binary",
-        "url": "https://testingcf.jsdelivr.net/gh/MetaCubeX/meta-rules-dat@sing/geo/geosite/cn.srs",
+        "url": "https://fastly.jsdelivr.net/gh/MetaCubeX/meta-rules-dat@sing/geo/geosite/cn.srs",
         "download_detour": "DIRECT",
         "update_interval": "24h"
       },
@@ -189,7 +180,7 @@
         "tag": "geosite-gemini",
         "type": "remote",
         "format": "binary",
-        "url": "https://testingcf.jsdelivr.net/gh/MetaCubeX/meta-rules-dat@sing/geo/geosite/google-gemini.srs",
+        "url": "https://fastly.jsdelivr.net/gh/MetaCubeX/meta-rules-dat@sing/geo/geosite/google-gemini.srs",
         "download_detour": "DIRECT",
         "update_interval": "24h"
       },
@@ -197,7 +188,7 @@
         "tag": "geosite-google",
         "type": "remote",
         "format": "binary",
-        "url": "https://testingcf.jsdelivr.net/gh/MetaCubeX/meta-rules-dat@sing/geo/geosite/google.srs",
+        "url": "https://fastly.jsdelivr.net/gh/MetaCubeX/meta-rules-dat@sing/geo/geosite/google.srs",
         "download_detour": "DIRECT",
         "update_interval": "24h"
       }
@@ -216,14 +207,6 @@
       },
       {
         "protocol": ["bittorrent"],
-        "outbound": "DIRECT"
-      },
-      {
-        "domain_suffix": [
-          "rsxiaoyu.eu.org",
-          "3cfood.com",
-          "kingfeer.com"
-        ],
         "outbound": "DIRECT"
       },
       {
