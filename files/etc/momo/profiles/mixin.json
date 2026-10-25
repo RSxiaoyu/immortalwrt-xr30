@@ -6,23 +6,12 @@
         "type": "local"
       },
       {
-        "tag": "doh-ali",
-        "type": "https",
-        "server": "223.5.5.5"
-      },
-      {
         "tag": "fake-ip-dns-server",
         "type": "fakeip",
         "inet4_range": "198.18.0.0/15"
       }
     ],
     "rules": [
-      {
-        "domain": [
-          "cloudflare-ech.com"
-        ],
-        "server": "doh-ali"
-      },
       {
         "rule_set": "geosite-cn",
         "server": "local"
