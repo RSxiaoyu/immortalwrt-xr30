@@ -65,13 +65,6 @@ jobs:
           echo "IB_DIR=$IB_DIR" >> $GITHUB_ENV
           echo "Extracted to $IB_DIR"
 
-      # 包下载缓存目录为 $(TOPDIR)/dl（apk --cache-dir），命中后省去逐包拉取
-      - name: Restore package cache
-        uses: actions/cache@v4
-        with:
-          path: immortalwrt-imagebuilder-*/dl
-          key: dl-${{ steps.upstream.outputs.sha }}
-
       - name: Inject XR30 profile and device tree
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
