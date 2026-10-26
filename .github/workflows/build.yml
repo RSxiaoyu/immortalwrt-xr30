@@ -29,23 +29,37 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Set build variables
-        id: vars
-        run: |
-          echo "build_date=$(date +'%Y.%m.%d')" >> $GITHUB_OUTPUT
-
       - name: Install build tools
         run: |
           sudo apt-get -qq update
-          sudo apt-get -qq install zstd libssl-dev libncurses-dev jq device-tree-compiler
+          sudo apt-get -qq install zstd jq device-tree-compiler
+
+      # 缓存 key 取上游 sha256sums 中的 tarball 摘要：上游重建即自动换 key
+      - name: Resolve upstream ImageBuilder identity
+        id: upstream
+        run: |
+          SUM=$(curl -sL --retry 3 --connect-timeout 10 "${IB_URL%/*}/sha256sums" \
+            | awk '/imagebuilder.*\.tar\.zst$/{print $1; exit}')
+          echo "sha=${SUM:-unknown}" >> $GITHUB_OUTPUT
+          echo "Upstream ImageBuilder sha256: ${SUM:-unknown}"
+
+      - name: Restore ImageBuilder tarball
+        id: ib_cache
+        uses: actions/cache@v4
+        with:
+          path: ib.tar.zst
+          key: ib-${{ steps.upstream.outputs.sha }}
 
       - name: Download official ImageBuilder
+        if: steps.ib_cache.outputs.cache-hit != 'true'
         run: |
           echo "Downloading official ImageBuilder..."
-          curl -sL --retry 3 --connect-timeout 10 \
+          curl -sL --retry 3 --connect-timeout 10 --max-time 900 \
             "${{ env.IB_URL }}" -o ib.tar.zst
+
+      - name: Extract ImageBuilder
+        run: |
           tar -I zstd -xf ib.tar.zst
-          rm -f ib.tar.zst
           IB_DIR=$(ls -d immortalwrt-imagebuilder-*)
           echo "IB_DIR=$IB_DIR" >> $GITHUB_ENV
           echo "Extracted to $IB_DIR"
@@ -61,12 +75,11 @@ jobs:
         run: |
           cd "$IB_DIR"
 
-          find "$GITHUB_WORKSPACE/files" -type f \( -name "*.sh" -o -name "*.uc" \) -exec sed -i 's/\r$//' {} + 2>/dev/null || true
-          find "$GITHUB_WORKSPACE/files" -type f -exec chmod +x {} + 2>/dev/null || true
+          chmod +x "$GITHUB_WORKSPACE/files/etc/uci-defaults/"* 2>/dev/null || true
 
-          PACKAGES_LIST="kmod-dummy kmod-nft-socket kmod-nft-tproxy kmod-tun kmod-inet-diag kmod-netlink-diag kmod-tcp-bbr kmod-usb3 kmod-usb-storage kmod-usb-storage-uas kmod-fs-ext4 kmod-fs-vfat kmod-fs-exfat automount luci luci-i18n-base-zh-cn luci-i18n-firewall-zh-cn luci-i18n-package-manager-zh-cn luci-theme-argon luci-app-ttyd luci-i18n-ttyd-zh-cn curl ca-bundle ip-full momo luci-app-momo luci-i18n-momo-zh-cn sing-box"
+          PACKAGES_LIST="kmod-dummy kmod-nft-socket kmod-nft-tproxy kmod-tun kmod-inet-diag kmod-netlink-diag kmod-tcp-bbr kmod-usb3 kmod-usb-storage kmod-usb-storage-uas kmod-fs-ext4 kmod-fs-vfat kmod-fs-exfat automount luci luci-i18n-base-zh-cn luci-i18n-firewall-zh-cn luci-i18n-package-manager-zh-cn luci-theme-argon luci-app-ttyd luci-i18n-ttyd-zh-cn curl ca-bundle ip-full -procd-ujail procd yq nikki luci-app-nikki luci-i18n-nikki-zh-cn mihomo-meta"
 
-          echo "Packaging firmware with USB 3.0, UAS, Momo and Sing-box..."
+          echo "Packaging firmware with USB 3.0, UAS, and Nikki..."
           make image PROFILE=cmcc_rax3000m \
             PACKAGES="$PACKAGES_LIST" \
             FILES="$GITHUB_WORKSPACE/files"
@@ -103,8 +116,12 @@ jobs:
           sha256sum * > sha256sums
 
           # 内容寻址: tag 由上游 rev 决定,同一上游内容重复构建时原地更新既有 Release (不产生新条目)
+          # 优先从产物文件名提取;上游改名无前缀时,从官方 profiles.json 的 version_code 兑底
           UPREV=$(ls | grep -oP 'r[0-9]+-[0-9a-f]+' | head -n 1)
-          if [ -z "$UPREV" ]; then echo "Error: upstream rev not found in artifact filename!"; exit 1; fi
+          if [ -z "$UPREV" ]; then
+            UPREV=$(curl -sL --retry 3 "https://downloads.immortalwrt.org/releases/25.12-SNAPSHOT/targets/mediatek/filogic/profiles.json" | grep -oP '(?<="version_code":")[^"]+' | head -n 1)
+          fi
+          if [ -z "$UPREV" ]; then echo "Error: upstream rev not found!"; exit 1; fi
           echo "release_tag=25.12-${UPREV}" >> "$GITHUB_ENV"
           echo "Upstream rev: ${UPREV} -> release_tag=25.12-${UPREV}"
           ls -la
