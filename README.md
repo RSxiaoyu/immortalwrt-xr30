@@ -4,10 +4,8 @@
 
 基于CMCC RAX3000M的ImageBuilder修改设备树实现快速编译原生ImmortalWrt固件。
 
-修改 [OpenWrt-momo](https://github.com/nikkinikki-org/OpenWrt-momo) 实现 `mixin.json` 订阅覆写、聚合。
-
 ## 软件包
-Argon 主题、TTYD 终端、momo (Sing-box)
+Argon 主题、TTYD 终端、Nikki (Mihomo)
 
 ## 分支
 - `snapshot` 自动触发

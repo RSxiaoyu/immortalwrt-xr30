@@ -1,1 +1,0 @@
-0 5 * * * [ "$(uci -q get momo.config.profile)" = "file:mixin.json" ] && for s in $(uci -q show momo | sed -n 's/^momo\.\([^=]*\)=subscription$/\1/p'); do /etc/init.d/momo update_subscription "$s"; done

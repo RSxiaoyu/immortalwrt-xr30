@@ -43,7 +43,7 @@ jobs:
       - name: Download official ImageBuilder
         run: |
           echo "Downloading official ImageBuilder..."
-          curl -sL --retry 3 --connect-timeout 10 \
+          curl -sL --retry 3 --connect-timeout 10 --max-time 300 \
             "${{ env.IB_URL }}" -o ib.tar.zst
           tar -I zstd -xf ib.tar.zst
           rm -f ib.tar.zst
@@ -64,9 +64,9 @@ jobs:
 
           find "$GITHUB_WORKSPACE/files" -type f -exec chmod +x {} + 2>/dev/null || true
 
-          PACKAGES_LIST="kmod-dummy kmod-nft-socket kmod-nft-tproxy kmod-tun kmod-inet-diag kmod-netlink-diag kmod-tcp-bbr kmod-usb3 kmod-usb-storage kmod-usb-storage-uas kmod-fs-ext4 kmod-fs-vfat kmod-fs-exfat automount luci luci-i18n-base-zh-cn luci-i18n-firewall-zh-cn luci-i18n-package-manager-zh-cn luci-theme-argon luci-app-ttyd luci-i18n-ttyd-zh-cn curl ca-bundle ip-full momo luci-app-momo luci-i18n-momo-zh-cn sing-box"
+          PACKAGES_LIST="kmod-dummy kmod-nft-socket kmod-nft-tproxy kmod-tun kmod-inet-diag kmod-netlink-diag kmod-tcp-bbr kmod-usb3 kmod-usb-storage kmod-usb-storage-uas kmod-fs-ext4 kmod-fs-vfat kmod-fs-exfat automount luci luci-i18n-base-zh-cn luci-i18n-firewall-zh-cn luci-i18n-package-manager-zh-cn luci-theme-argon luci-app-ttyd luci-i18n-ttyd-zh-cn curl ca-bundle ip-full -procd-ujail procd yq nikki luci-app-nikki luci-i18n-nikki-zh-cn mihomo-meta"
 
-          echo "Packaging firmware with USB 3.0, UAS, Momo and Sing-box..."
+          echo "Packaging firmware with USB 3.0, UAS, and Nikki..."
           make image PROFILE=cmcc_rax3000m \
             PACKAGES="$PACKAGES_LIST" \
             FILES="$GITHUB_WORKSPACE/files"
