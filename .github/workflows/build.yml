@@ -43,7 +43,7 @@ jobs:
       - name: Download official ImageBuilder
         run: |
           echo "Downloading official ImageBuilder..."
-          curl -sL --retry 3 --connect-timeout 10 --max-time 300 \
+          curl -sL --retry 3 --connect-timeout 10 --max-time 900 \
             "${{ env.IB_URL }}" -o ib.tar.zst
           tar -I zstd -xf ib.tar.zst
           rm -f ib.tar.zst
