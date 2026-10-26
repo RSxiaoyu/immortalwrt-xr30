@@ -103,4 +103,21 @@ fi
 
 ls -lh packages/
 
+# 6. 内置 geodata（避开首启联网拉 GitHub 被阻断导致内核配置校验失败）
+GEO_DIR="$REPO_DIR/files/etc/nikki/run"
+mkdir -p "$GEO_DIR"
+GEO_BASE="https://fastly.jsdelivr.net/gh/MetaCubeX/meta-rules-dat@release"
+for f in geoip.metadb geosite.dat; do
+    curl -sLf --retry 3 --max-time 300 "$GEO_BASE/$f" -o "$GEO_DIR/$f"
+done
+# 自检: CDN 返回错误页时体积会远小于 1MB
+for f in geoip.metadb geosite.dat; do
+    SZ=$(stat -c %s "$GEO_DIR/$f" 2>/dev/null || echo 0)
+    if [ "$SZ" -lt 1048576 ]; then
+        echo "Error: $f looks invalid ($SZ bytes)"
+        exit 1
+    fi
+done
+ls -lh "$GEO_DIR"
+
 echo "XR30 DTB overlay, supported devices, and latest upstream packages staged successfully in ImageBuilder!"

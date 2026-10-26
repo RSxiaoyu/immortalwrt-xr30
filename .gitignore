@@ -11,3 +11,4 @@ ib.tar.zst
 *.bak
 files/etc/board.d/02_network
 files/lib/upgrade/platform.sh
+files/etc/nikki/run/
